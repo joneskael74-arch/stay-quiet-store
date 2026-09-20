@@ -28,7 +28,7 @@ label{display:block;font-size:12px;letter-spacing:2px;color:#999;margin:16px 0 8
 let products=[];
 async function api(url,opt={}){const r=await fetch(url,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});let d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||'Request failed');return d}
 async function login(){try{await api('/api/login',{method:'POST',body:JSON.stringify({email:email.value,password:password.value})});await boot()}catch(e){loginError.textContent=e.message}}
-async function boot(){login.classList.add('hidden');app.classList.remove('hidden');await load()}
+async function boot(){document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');await load()}
 async function logout(){await api('/api/logout',{method:'POST'});location.reload()}
 async function load(){products=await api('/api/products');render()}
 function render(){count.textContent=products.length;published.textContent=products.filter(p=>p.status==='published').length;stock.textContent=products.reduce((n,p)=>n+Number(p.qty||0),0);grid.innerHTML=products.length?products.map(p=>`<article class="product"><div class="pic">${p.imageUrl?`<img src="${esc(p.imageUrl)}">`:'<span class="muted">NO IMAGE</span>'}</div><div class="pbody"><div class="muted">${esc(p.category||'UNCATEGORIZED')} · ${p.status.toUpperCase()}</div><h3>${esc(p.name)}</h3><div class="price">$${Number(p.price||0).toFixed(2)}</div><div class="muted">STOCK: ${Number(p.qty||0)}</div><div class="actions"><button onclick="editProduct('${p._id}')">EDIT</button><button onclick="delProduct('${p._id}')">DELETE</button></div></div></article>`).join(''):'<div class="empty">No products yet. Click <b>+ ADD PRODUCT</b>.</div>'}
