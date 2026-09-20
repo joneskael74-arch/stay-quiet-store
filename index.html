@@ -35,8 +35,67 @@ function render(){count.textContent=products.length;published.textContent=produc
 function openModal(p=null){modal.style.display='flex';modalTitle.textContent=p?'Edit Product':'Add Product';editId.value=p?._id||'';name.value=p?.name||'';price.value=p?.price??'';qty.value=p?.qty??'';category.value=p?.category||'';status.value=p?.status||'published';imageUrl.value=p?.imageUrl||'';description.value=p?.description||'';imageFile.value='';saveError.textContent=''}
 function closeModal(){modal.style.display='none'}
 function editProduct(id){const p=products.find(x=>String(x._id)===String(id));if(p)openModal(p)}
-async function saveProduct(){try{let img=imageUrl.value.trim();const f=imageFile.files[0];if(f){const fd=new FormData();fd.append('image',f);const r=await fetch('/api/upload',{method:'POST',body:fd});const d=await r.json();if(!r.ok)throw Error(d.error);img=d.url}const body={name:name.value,price:price.value,qty:qty.value,category:category.value,status:status.value,imageUrl:img,description:description.value};const id=editId.value;if(id)await api('/api/products/'+id,{method:'PUT',body:JSON.stringify(body)});else await api('/api/products',{method:'POST',body:JSON.stringify(body)});closeModal();await load()}catch(e){saveError.textContent=e.message}}
-async function delProduct(id){if(confirm('Delete this product?')){await api('/api/products/'+id,{method:'DELETE'});await load()}}
-function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-(async()=>{try{await api('/api/me');await boot()}catch{}})()
-</script></body></html>
+async function async function saveProduct(){
+  try{
+    const productName = document.getElementById("name").value.trim();
+    const productPrice = Number(document.getElementById("price").value || 0);
+    const productQty = Number(document.getElementById("qty").value || 0);
+    const productCategory = document.getElementById("category").value.trim();
+    const productStatus = document.getElementById("status").value;
+    const productImageUrl = document.getElementById("imageUrl").value.trim();
+    const productDescription = document.getElementById("description").value.trim();
+
+    if(!productName){
+      saveError.textContent = "Product name is required";
+      return;
+    }
+
+    let imageUrl = productImageUrl;
+
+    const imageFile = document.getElementById("imageFile").files[0];
+
+    if(imageFile){
+      const fd = new FormData();
+      fd.append("image", imageFile);
+
+      const uploadResponse = await fetch("/api/upload", {
+        method:"POST",
+        body:fd
+      });
+
+      const uploadData = await uploadResponse.json();
+
+      if(!uploadResponse.ok){
+        throw new Error(uploadData.error || "Image upload failed");
+      }
+
+      imageUrl = uploadData.url;
+    }
+
+    const product = {
+      name: productName,
+      price: productPrice,
+      qty: productQty,
+      category: productCategory,
+      status: productStatus,
+      imageUrl: imageUrl,
+      description: productDescription
+    };
+
+    const id = editId.value;
+
+    const response = await api(
+      id ? `/api/products/${id}` : "/api/products",
+      {
+        method: id ? "PUT" : "POST",
+        body: JSON.stringify(product)
+      }
+    );
+
+    closeModal();
+    await load();
+
+  }catch(error){
+    saveError.textContent = error.message;
+  }
+}
