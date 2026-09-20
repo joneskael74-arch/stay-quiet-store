@@ -1,0 +1,10 @@
+{
+  "description": "Offers a seamless online shopping experience with curated products for users seeking convenience and quality in one platform.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
