@@ -35,7 +35,7 @@ function render(){count.textContent=products.length;published.textContent=produc
 function openModal(p=null){modal.style.display='flex';modalTitle.textContent=p?'Edit Product':'Add Product';editId.value=p?._id||'';name.value=p?.name||'';price.value=p?.price??'';qty.value=p?.qty??'';category.value=p?.category||'';status.value=p?.status||'published';imageUrl.value=p?.imageUrl||'';description.value=p?.description||'';imageFile.value='';saveError.textContent=''}
 function closeModal(){modal.style.display='none'}
 function editProduct(id){const p=products.find(x=>String(x._id)===String(id));if(p)openModal(p)}
-async function async function saveProduct(){
+async function saveProduct(){
   try{
     const productName = document.getElementById("name").value.trim();
     const productPrice = Number(document.getElementById("price").value || 0);
