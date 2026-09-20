@@ -120,6 +120,6 @@ app.post("/api/upload", auth, upload.single("image"), (req,res) => {
   res.json({url:`/uploads/${path.basename(target)}`});
 });
 
-app.get("*", (req,res) => res.sendFile(path.resolve("public/index.html")));
+app.get("/{*splat}", (req, res) => res.sendFile(path.resolve("public/index.html")));
 
 app.listen(PORT, () => console.log(`STAY QUIET server running on port ${PORT}`));
