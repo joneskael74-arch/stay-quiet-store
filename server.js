@@ -38,7 +38,7 @@ const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
 
 function auth(req,res,next) {
   try {
-    const token = req.cookies.sq_admin;
+    const token = req.cookies.sq_admin || req.headers["x-admin-token"];
     if (!token) return res.status(401).json({error:"Not authenticated"});
     req.admin = jwt.verify(token, process.env.JWT_SECRET);
     next();
