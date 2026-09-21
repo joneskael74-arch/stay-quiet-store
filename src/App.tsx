@@ -237,7 +237,7 @@ export default function App() {
 }
 
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}><div style={{ background: '#141412', border: '1px solid #252521', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: '2rem' }}><button onClick={onClose} style={{ float: 'right', background: 'none', border: 'none', color: '#6b6760', cursor: 'pointer', fontSize: 20 }}>×</button>{children}</div></div>
+  return <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}><div style={{ position: 'relative', zIndex: 101, background: '#141412', border: '1px solid #52524d', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: '2rem', color: '#f0ece3', boxSizing: 'border-box' }}><button onClick={onClose} style={{ float: 'right', background: 'none', border: 'none', color: '#6b6760', cursor: 'pointer', fontSize: 20 }}>×</button>{children}</div></div>
 }
 
 function ProductCard({ product, added, onAdd, adminToken, onRemove }: { product: Product; added: boolean; onAdd: () => void; adminToken: string; onRemove: () => void }) {
