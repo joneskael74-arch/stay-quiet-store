@@ -222,7 +222,18 @@ export default function App() {
               setShowAdminLogin(false);
               setShowAddPanel(true);
             }}
-            style={primaryButtonStyle}
+            style={{
+  width: '100%',
+  marginTop: '1.25rem',
+  background: '#c9b99a',
+  border: 'none',
+  color: '#0b0b0a',
+  padding: '0.9rem',
+  fontSize: 11,
+  letterSpacing: '0.18em',
+  textTransform: 'uppercase',
+  cursor: 'pointer'
+}}
           >
             Continue to Admin
           </button>
