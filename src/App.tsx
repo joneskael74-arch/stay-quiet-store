@@ -49,7 +49,7 @@ export default function App() {
   async function loadProducts() {
     try {
       setLoading(true)
-      const response = await fetch('/api/products')
+      const response = await fetch('/api/store/products')
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Unable to load products')
       setProducts(data)
@@ -114,7 +114,7 @@ export default function App() {
     }
     if (!form.name.trim() || !form.price.trim()) return
     try {
-      const response = await fetch('/api/products', {
+      const response = await fetch('/api/store/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken.trim() },
         body: JSON.stringify({
@@ -205,9 +205,25 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
   return <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}><div style={{ background: '#141412', border: '1px solid #252521', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: '2rem' }}><button onClick={onClose} style={{ float: 'right', background: 'none', border: 'none', color: '#6b6760', cursor: 'pointer', fontSize: 20 }}>×</button>{children}</div></div>
 }
 
-function ProductCard({ product, added, onAdd }: { product: Product; added: boolean; onAdd: () => void }) {
+function ProductCard({ product, added, onAdd, adminToken, onRemove }: { product: Product; added: boolean; onAdd: () => void; adminToken: string; onRemove: () => void }) {
   const [hovered, setHovered] = useState(false)
-  return <div style={{ background: '#0b0b0a', position: 'relative' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}><div style={{ position: 'relative', aspectRatio: '4/5', overflow: 'hidden', background: '#141412' }}>{product.image ? <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.6s ease, filter 0.4s ease', transform: hovered ? 'scale(1.04)' : 'scale(1)', filter: hovered ? 'brightness(0.45)' : 'brightness(0.8)' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2e2e2a' }}>No image</div>}{product.tag && <span style={{ position: 'absolute', top: '1rem', left: '1rem', background: '#c9b99a', color: '#0b0b0a', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '0.25rem 0.6rem' }}>{product.tag}</span>}<button onClick={onAdd} style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem', background: added ? '#c9b99a' : 'rgba(11,11,10,0.9)', border: '1px solid ' + (added ? '#c9b99a' : '#3a3835'), color: added ? '#0b0b0a' : '#f0ece3', padding: '0.75rem', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', opacity: hovered || added ? 1 : 0, transform: hovered || added ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity 0.3s, transform 0.3s' }}>{added ? 'Added' : 'Add to Bag'}</button></div><div style={{ padding: '1rem 0.75rem' }}><p style={{ fontSize: 9, color: '#4a4845', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.35rem' }}>{product.category}</p><p style={{ fontSize: 14, color: '#e0dbd2', marginBottom: '0.25rem' }}>{product.name}</p><p style={{ fontSize: 13, color: '#6b6760' }}>${product.price.toFixed(2)}</p></div></div>
+  return <div style={{ background: '#0b0b0a', position: 'relative' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}><div style={{ position: 'relative', aspectRatio: '4/5', overflow: 'hidden', background: '#141412' }}>{product.image ? <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.6s ease, filter 0.4s ease', transform: hovered ? 'scale(1.04)' : 'scale(1)', filter: hovered ? 'brightness(0.45)' : 'brightness(0.8)' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2e2e2a' }}>No image</div>}{product.tag && <span style={{ position: 'absolute', top: '1rem', left: '1rem', background: '#c9b99a', color: '#0b0b0a', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '0.25rem 0.6rem' }}>{product.tag}</span>}<button onClick={onAdd} style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem', background: added ? '#c9b99a' : 'rgba(11,11,10,0.9)', border: '1px solid ' + (added ? '#c9b99a' : '#3a3835'), color: added ? '#0b0b0a' : '#f0ece3', padding: '0.75rem', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', opacity: hovered || added ? 1 : 0, transform: hovered || added ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity 0.3s, transform 0.3s' }}>{added ? 'Added' : 'Add to Bag'}</button>
+{adminToken.trim() && (
+  <button
+    onClick={onRemove}
+    style={{
+      marginTop: "0.6rem",
+      width: "100%",
+      background: "transparent",
+      border: "1px solid #8b4a4a",
+      color: "#8b4a4a",
+      padding: "0.65rem",
+      cursor: "pointer"
+    }}
+  >
+    Remove Product
+  </button>
+)}</div><div style={{ padding: '1rem 0.75rem' }}><p style={{ fontSize: 9, color: '#4a4845', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.35rem' }}>{product.category}</p><p style={{ fontSize: 14, color: '#e0dbd2', marginBottom: '0.25rem' }}>{product.name}</p><p style={{ fontSize: 13, color: '#6b6760' }}>${product.price.toFixed(2)}</p></div></div>
 }
 
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6b6760', margin: '1rem 0 0.5rem' }

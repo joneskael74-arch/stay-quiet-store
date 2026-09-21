@@ -122,7 +122,7 @@ app.post("/api/upload", auth, upload.single("image"), (req,res) => {
 app.use(express.static(path.join(process.cwd(), "dist")));
 
 app.get("/{*splat}", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "index.html"));
+  res.sendFile(path.join(process.cwd(), "dist", "index.html"));
 });
 
 
