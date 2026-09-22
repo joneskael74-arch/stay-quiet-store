@@ -75,7 +75,7 @@ app.get("/api/store/products", async (req,res) => {
 });
 
 app.post("/api/products", auth, async (req,res) => {
-  const {name,price,qty,category,status,imageUrl,description} = req.body || {};
+  const {name,price,qty,category,status,image,imageUrl,description} = req.body || {};
   if (!name?.trim()) return res.status(400).json({error:"Product name is required"});
   const doc = {
     name:name.trim(), price:Number(price||0), qty:Number(qty||0),
@@ -90,7 +90,7 @@ app.post("/api/products", auth, async (req,res) => {
 app.put("/api/products/:id", auth, async (req,res) => {
   let id;
   try { id = new ObjectId(req.params.id); } catch { return res.status(400).json({error:"Invalid product id"}); }
-  const {name,price,qty,category,status,imageUrl,description} = req.body || {};
+  const {name,price,qty,category,status,image,imageUrl,description} = req.body || {};
   if (!name?.trim()) return res.status(400).json({error:"Product name is required"});
   const update = {$set:{
     name:name.trim(), price:Number(price||0), qty:Number(qty||0),
