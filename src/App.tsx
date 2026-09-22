@@ -49,6 +49,21 @@ export default function App() {
 
   useEffect(() => {
     loadProducts()
+
+    async function checkAdminSession() {
+      try {
+        const response = await fetch('/api/me', {
+          credentials: 'include'
+        })
+        if (response.ok) {
+          setIsAdmin(true)
+        }
+      } catch (err) {
+        console.error('Admin session check failed', err)
+      }
+    }
+
+    checkAdminSession()
   }, [])
 
   async function loadProducts() {
