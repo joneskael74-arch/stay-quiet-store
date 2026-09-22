@@ -148,7 +148,7 @@ export default function App() {
           price: Number(form.price),
           category: form.category.trim() || 'General',
           tag: form.tag.trim() || null,
-          image: form.image,
+          imageUrl: form.image,
         }),
       })
       const data = await response.json()
