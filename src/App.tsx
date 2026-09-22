@@ -35,6 +35,7 @@ export default function App() {
   const [showAddPanel, setShowAddPanel] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [adminToken, setAdminToken] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
   const [adminEmail, setAdminEmail] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [showAdminLogin, setShowAdminLogin] = useState(false)
@@ -125,6 +126,7 @@ export default function App() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Login failed')
+    setIsAdmin(true)
       setShowAdminLogin(false)
       setShowAddPanel(true)
       setAdminPassword('')
@@ -160,6 +162,28 @@ export default function App() {
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add product')
+    }
+  }
+
+  async function removeProduct(id: string) {
+    if (!window.confirm("Remove this product from the store?")) return
+
+    try {
+      setError("")
+      const response = await fetch(`/api/products/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to remove product")
+      }
+
+      setProducts(current => current.filter(product => product.id !== id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to remove product")
     }
   }
 
@@ -233,7 +257,7 @@ export default function App() {
         {error && <div style={{ marginBottom: '1.5rem', padding: '0.9rem 1rem', border: '1px solid #3a3835', color: '#c9b99a', fontSize: '12px' }}>{error}</div>}
         {loading && <div style={{ textAlign: 'center', padding: '6rem 2rem', color: '#aaa6a0' }}>Loading products…</div>}
         {!loading && products.length === 0 && <div style={{ textAlign: 'center', padding: '6rem 2rem', border: '1px dashed #2e2e2a' }}><p style={{ fontFamily: 'Fraunces, Georgia, serif', fontStyle: 'italic', fontSize: '1.4rem', color: '#3a3835', marginBottom: '1rem' }}>No products yet</p><p style={{ color: '#4a4845', fontSize: '13px' }}>Use Add Product to create your first database-backed item.</p></div>}
-        {filtered.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1px', background: '#1e1e1b', border: '1px solid #1e1e1b' }}>{filtered.map(product => <ProductCard key={product.id} product={product} added={addedId === product.id} onAdd={() => addToCart(product.id)} />)}</div>}
+        {filtered.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1px', background: '#1e1e1b', border: '1px solid #1e1e1b' }}>{filtered.map(product => <ProductCard key={product.id} product={product} added={addedId === product.id} onAdd={() => addToCart(product.id)} adminToken={isAdmin ? "admin" : ""} onRemove={() => removeProduct(product.id)} />)}</div>}
       </section>
 
       <footer style={{ borderTop: '1px solid #1e1e1b', padding: '3rem 6%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}><p style={{ fontFamily: 'Fraunces, Georgia, serif', fontWeight: 300, letterSpacing: '0.2em', textTransform: 'uppercase', fontSize: '0.85rem' }}>Stay Quiet</p><a href="https://discord.gg/GJQRSVn3F" target="_blank" rel="noopener noreferrer" style={{ color: '#c9b99a', textDecoration: 'none', fontSize: '12px', letterSpacing: '0.12em', textTransform: 'uppercase', border: '1px solid #2e2e2a', padding: '0.6rem 1.2rem' }}>Join our Discord</a><p style={{ fontSize: '11px', color: '#3a3835' }}>© 2026 Stay Quiet. All rights reserved.</p></footer>
