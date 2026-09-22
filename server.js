@@ -79,7 +79,7 @@ app.post("/api/products", auth, async (req,res) => {
   if (!name?.trim()) return res.status(400).json({error:"Product name is required"});
   const doc = {
     name:name.trim(), price:Number(price||0), qty:Number(qty||0),
-    category:(category||"").trim(), status:status==="published"?"published":"draft",
+    category:(category||"").trim(), status:"published",
     imageUrl:(imageUrl||"").trim(), description:(description||"").trim(),
     createdAt:new Date(), updatedAt:new Date()
   };
@@ -94,7 +94,7 @@ app.put("/api/products/:id", auth, async (req,res) => {
   if (!name?.trim()) return res.status(400).json({error:"Product name is required"});
   const update = {$set:{
     name:name.trim(), price:Number(price||0), qty:Number(qty||0),
-    category:(category||"").trim(), status:status==="published"?"published":"draft",
+    category:(category||"").trim(), status:"published",
     imageUrl:(imageUrl||"").trim(), description:(description||"").trim(),
     updatedAt:new Date()
   }};
