@@ -1,3 +1,4 @@
+import adminDashboardBg from "./assets/admin-dashboard-bg.png";
 import { useEffect, useMemo, useRef, useState } from 'react'
 import logo from './assets/logo.png'
 import heroImage from './assets/stay-quiet-hero.png'
@@ -33,6 +34,8 @@ export default function App() {
   const [addedId, setAddedId] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [showAddPanel, setShowAddPanel] = useState(false)
+const [showRemovePanel, setShowRemovePanel] = useState(false)
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [adminToken, setAdminToken] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
@@ -57,6 +60,8 @@ export default function App() {
         })
         if (response.ok) {
           setIsAdmin(true)
+setAdminToken("admin")
+setShowAdminDashboard(true)
         }
       } catch (err) {
         console.error('Admin session check failed', err)
@@ -144,7 +149,8 @@ export default function App() {
     setIsAdmin(true)
       setAdminToken("admin")
       setShowAdminLogin(false)
-      setShowAddPanel(true)
+      setShowAddPanel(false)
+    setShowAdminDashboard(true)
       setAdminPassword('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -266,8 +272,14 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3rem', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '1.5rem', flexWrap: 'wrap' }}><h2 style={{ fontFamily: 'Fraunces, Georgia, serif', fontWeight: 300, fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', margin: 0 }}>Shop</h2>{categories.length > 1 && <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>{categories.map(cat => <button key={cat} onClick={() => setActiveCategory(cat)} style={{ background: activeCategory === cat ? '#c9b99a' : 'transparent', border: '1px solid ' + (activeCategory === cat ? '#c9b99a' : '#2e2e2a'), color: activeCategory === cat ? '#0b0b0a' : '#6b6760', padding: '0.4rem 1.1rem', fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' }}>{cat}</button>)}</div>}</div>
           {!isAdmin && <button onClick={() => setShowAdminLogin(true)} style={{ background: 'transparent', border: '1px solid #3a3835', color: '#b8b8b8', padding: '0.5rem 0.8rem', cursor: 'pointer' }}>Admin Login</button>}
-            <button onClick={() => setShowAddPanel(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#080808', border: '1px solid #2e2e2a', color: '#c9b99a', padding: '0.6rem 1.4rem', fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' }}>＋ Add Product</button>
-        </div>
+{isAdmin && (
+  <button
+    onClick={() => setShowAddPanel(true)}
+    style={primaryButton}
+  >
+    + ADD PRODUCT
+  </button>
+)}        </div>
 
         {error && <div style={{ marginBottom: '1.5rem', padding: '0.9rem 1rem', border: '1px solid #3a3835', color: '#c9b99a', fontSize: '12px' }}>{error}</div>}
         {loading && <div style={{ textAlign: 'center', padding: '6rem 2rem', color: '#aaa6a0' }}>Loading products…</div>}
@@ -325,8 +337,93 @@ export default function App() {
 
       {showCart && <Overlay onClose={() => setShowCart(false)}><h3 style={headingStyle}>Your Bag</h3>{cartProducts.length === 0 ? <p style={{ color: '#aaa6a0' }}>Your bag is empty.</p> : <><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>{cartProducts.map(({ item, product }) => <div key={item.id} style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', borderBottom: '1px solid #252521', paddingBottom: '1rem' }}>{product.imageUrl && <img src={product.imageUrl} alt="" style={{ width: 56, height: 56, objectFit: 'cover' }} />}<div style={{ flex: 1 }}><div style={{ fontSize: 13 }}>{product.name}</div><div style={{ color: '#aaa6a0', fontSize: 12 }}>${product.price.toFixed(2)}</div></div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><button onClick={() => changeQuantity(item.id, item.quantity - 1)} style={qtyButton}>−</button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, item.quantity + 1)} style={qtyButton}>+</button></div></div>)}</div><div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><span>Total</span><strong>${cartTotal.toFixed(2)}</strong></div><button onClick={checkout} disabled={checkoutLoading} style={primaryButton}>{checkoutLoading ? 'Opening Checkout…' : 'Checkout with Stripe'}</button></>}</Overlay>}
 
-      {showAddPanel && <Overlay onClose={() => setShowAddPanel(false)}><h3 style={headingStyle}>Add Product</h3><p style={{ color: '#aaa6a0', fontSize: 12, lineHeight: 1.5 }}>This creates a real product in MongoDB. Your admin token is only sent to your Vercel API and is never stored in the browser.</p><label style={labelStyle}>Admin Token</label><input value={adminToken} onChange={e => setAdminToken(e.target.value)} type="password" style={inputStyle} /><label style={labelStyle}>Product Image</label><div onClick={() => fileRef.current?.click()} style={{ border: '1px dashed #2e2e2a', height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#0f0f0d', overflow: 'hidden' }}>{form.image ? <img src={form.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#4a4845', fontSize: 12 }}>Click to upload image (10 MB max)</span>}</div><input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} /><label style={labelStyle}>Product Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FiveM / LUA Executor" style={inputStyle} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}><div><label style={labelStyle}>Price (USD) *</label><input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="29.99" type="number" min="0" step="0.01" style={inputStyle} /></div><div><label style={labelStyle}>Category</label><input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Scripts" style={inputStyle} /></div></div><label style={labelStyle}>Badge</label><input value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} placeholder="New, Sale, Hot" style={inputStyle} /><button onClick={handleAddProduct} disabled={!form.name.trim() || !form.price.trim() || !adminToken.trim()} style={primaryButton}>Add to Shop</button></Overlay>}
+{showAdminDashboard && (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 90,
+      minHeight: '100vh',
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.65)), url(${adminDashboardBg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      color: '#fff',
+      padding: '40px'
+    }}
+  >
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 36, marginBottom: 8 }}>
+        STAY QUIET! ADMIN
+      </h1>
+
+      <p style={{ color: '#d0d0d0', marginBottom: 30 }}>
+        Admin Dashboard
+      </p>
+
+      <div style={{ display: 'flex', gap: 15, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setShowAddPanel(true)}
+          style={primaryButton}
+        >
+          ADD PRODUCT
+        </button>
+<button
+onClick={() => setShowRemovePanel(true)} style={primaryButton}>
+  REMOVE PRODUCT
+</button>
+        <button
+          onClick={() => {
+            setShowAdminDashboard(false)
+            setIsAdmin(false)
+            setAdminToken('')
+          }}
+          style={primaryButton}
+        >
+          LOG OUT
+        </button>
+      </div>
     </div>
+  </div>
+)}     
+ {showAddPanel && <Overlay onClose={() => setShowAddPanel(false)}><h3 style={headingStyle}>Add Product</h3><p style={{ color: '#aaa6a0', fontSize: 12, lineHeight: 1.5 }}>This creates a real product in MongoDB. Your admin token is only sent to your Vercel API and is never stored in the browser.</p><label style={labelStyle}>Admin Token</label><input value={adminToken} onChange={e => setAdminToken(e.target.value)} type="password" style={inputStyle} /><label style={labelStyle}>Product Image</label><div onClick={() => fileRef.current?.click()} style={{ border: '1px dashed #2e2e2a', height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#0f0f0d', overflow: 'hidden' }}>{form.image ? <img src={form.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#4a4845', fontSize: 12 }}>Click to upload image (10 MB max)</span>}</div><input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} /><label style={labelStyle}>Product Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FiveM / LUA Executor" style={inputStyle} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}><div><label style={labelStyle}>Price (USD) *</label><input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="29.99" type="number" min="0" step="0.01" style={inputStyle} /></div><div><label style={labelStyle}>Category</label><input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Scripts" style={inputStyle} /></div></div><label style={labelStyle}>Badge</label><input value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} placeholder="New, Sale, Hot" style={inputStyle} /><button onClick={handleAddProduct} disabled={!form.name.trim() || !form.price.trim() || !adminToken.trim()} style={primaryButton}>Add to Shop</button></Overlay>}
+{showRemovePanel && (
+  <Overlay onClose={() => setShowRemovePanel(false)}>
+    <h3 style={headingStyle}>Remove Product</h3>
+
+    <p style={{ color: '#aaa6a0', marginBottom: 20 }}>
+      Select a product below to remove it from the shop.
+    </p>
+
+    {products.length === 0 ? (
+      <p>No products available.</p>
+    ) : (
+      products.map((product) => (
+        <div
+          key={product.id}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 15,
+            padding: '1rem',
+            marginBottom: 10,
+            border: '1px solid #444'
+          }}
+        >
+          <span>{product.name}</span>
+
+          <button
+            onClick={() =>  removeProduct(product.id)}
+            style={primaryButton}
+          >
+            REMOVE
+          </button>
+        </div>
+      ))
+    )}
+  </Overlay>
+)}    </div>
   )
 }
 
