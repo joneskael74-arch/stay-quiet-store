@@ -29,7 +29,7 @@ const uploadDir = path.join(process.cwd(), "uploads");
 fs.mkdirSync(uploadDir, { recursive: true });
 const upload = multer({ dest: uploadDir, limits: { fileSize: 8 * 1024 * 1024 } });
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "15mb" }));
 app.use(cookieParser());
 app.use(express.static("public"));
 app.use("/uploads", express.static(uploadDir));
