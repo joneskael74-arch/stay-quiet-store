@@ -64,7 +64,7 @@ app.post("/api/logout", (req,res) => {
 
 app.get("/api/me", auth, (req,res) => res.json({email:req.admin.email}));
 
-app.get("/api/products", auth, async (req,res) => {
+app.get("/api/products", async (req,res) => {
   const data = await products.find({}).sort({createdAt:-1}).toArray();
   res.json(data);
 });
