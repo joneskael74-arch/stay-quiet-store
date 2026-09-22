@@ -116,7 +116,7 @@ export default function App() {
     }
     if (!form.name.trim() || !form.price.trim()) return
     try {
-      const response = await fetch('/api/store/products', {
+      const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken.trim() },
         body: JSON.stringify({
