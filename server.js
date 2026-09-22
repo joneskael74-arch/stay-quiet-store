@@ -119,6 +119,58 @@ app.post("/api/upload", auth, upload.single("image"), (req,res) => {
   res.json({url:`/uploads/${path.basename(target)}`});
 });
 
+app.post("/api/verify-license", async (req, res) => {
+  try {
+    const { key } = req.body || {};
+
+    if (!key) {
+      return res.status(400).json({
+        success: false,
+        message: "License key required"
+      });
+    }
+
+    const cleanKey = String(key).trim().toUpperCase();
+
+    const keyHash = crypto
+      .createHash("sha256")
+      .update(cleanKey)
+      .digest("hex");
+
+    const license = await db.collection("licenses").findOne({
+      keyHash,
+      active: true
+    });
+
+    if (!license) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or inactive license"
+      });
+    }
+
+    if (license.expiresAt && new Date(license.expiresAt) <= new Date()) {
+      return res.status(401).json({
+        success: false,
+        message: "License expired"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      products: license.products || []
+    });
+
+  } catch (error) {
+    console.error("License verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "License verification failed"
+    });
+  }
+});
+
 app.use(express.static(path.join(process.cwd(), "dist")));
 
 app.get("/{*splat}", (req, res) => {
