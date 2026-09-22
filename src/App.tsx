@@ -35,6 +35,8 @@ export default function App() {
   const [showAddPanel, setShowAddPanel] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [adminToken, setAdminToken] = useState('')
+  const [adminEmail, setAdminEmail] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
   const [showAdminLogin, setShowAdminLogin] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [form, setForm] = useState<AddForm>({ name: '', price: '', category: '', tag: '', image: '' })
@@ -107,6 +109,28 @@ export default function App() {
     const reader = new FileReader()
     reader.onload = () => setForm(f => ({ ...f, image: String(reader.result || '') }))
     reader.readAsDataURL(file)
+  }
+
+  async function handleAdminLogin() {
+    try {
+      setError('')
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: adminEmail.trim(),
+          password: adminPassword
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Login failed')
+      setShowAdminLogin(false)
+      setShowAddPanel(true)
+      setAdminPassword('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed')
+    }
   }
 
   async function handleAddProduct() {
@@ -217,43 +241,45 @@ export default function App() {
       {showAdminLogin && (
         <Overlay onClose={() => setShowAdminLogin(false)}>
           <h3 style={headingStyle}>Admin Login</h3>
-          <p style={{ color: '#aaa6a0', fontSize: '13px', marginBottom: '1rem' }}>
-            Enter your admin token to continue.
+          <p style={{ color: '#aaaaa0', fontSize: 13, marginBottom: '1rem' }}>
+            Enter your admin email and password.
           </p>
 
-          <label style={labelStyle}>Admin Token</label>
+          <label style={labelStyle}>Admin Email</label>
           <input
-            value={adminToken}
-            onChange={e => setAdminToken(e.target.value)}
+            value={adminEmail}
+            onChange={e => setAdminEmail(e.target.value)}
+            type="email"
+            placeholder="Admin email"
+            style={inputStyle}
+          />
+
+          <label style={labelStyle}>Password</label>
+          <input
+            value={adminPassword}
+            onChange={e => setAdminPassword(e.target.value)}
             type="password"
-            placeholder="Enter admin token"
+            placeholder="Admin password"
             style={inputStyle}
           />
 
           <button
-            onClick={() => {
-              if (!adminToken.trim()) {
-                setError('Enter your admin token first.');
-                return;
-              }
-              setError('');
-              setShowAdminLogin(false);
-              setShowAddPanel(true);
-            }}
+            onClick={handleAdminLogin}
+            disabled={!adminEmail.trim() || !adminPassword}
             style={{
-  width: '100%',
-  marginTop: '1.25rem',
-  background: '#c9b99a',
-  border: 'none',
-  color: '#0b0b0a',
-  padding: '0.9rem',
-  fontSize: 11,
-  letterSpacing: '0.18em',
-  textTransform: 'uppercase',
-  cursor: 'pointer'
-}}
+              width: '100%',
+              marginTop: '1.25rem',
+              background: '#c9b99a',
+              border: 'none',
+              color: '#0b0b0a',
+              padding: '0.9rem',
+              fontSize: 11,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              cursor: 'pointer'
+            }}
           >
-            Continue to Admin
+            Login to Admin
           </button>
         </Overlay>
       )}
