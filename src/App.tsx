@@ -142,6 +142,7 @@ export default function App() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Login failed')
     setIsAdmin(true)
+      setAdminToken("admin")
       setShowAdminLogin(false)
       setShowAddPanel(true)
       setAdminPassword('')
