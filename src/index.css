@@ -45,3 +45,33 @@ body {
 .font-body {
   font-family: var(--font-body);
 }
+
+
+html {
+  background: #000;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 50% 15%, #242424 0%, #0b0b0b 35%, #000 75%);
+  color: #fff;
+}
+
+#root {
+  min-height: 100vh;
+  background: transparent;
+}
+
+button {
+  transition: all .2s ease;
+}
+
+button:hover {
+  filter: brightness(1.25);
+}
+
+img {
+  max-width: 100%;
+}
