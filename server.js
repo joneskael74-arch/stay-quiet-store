@@ -185,15 +185,16 @@ app.post("/api/checkout", async (req, res) => {
       return res.status(400).json({ error: "Your bag is empty" });
     }
 
-    const line_items = items.map((item) => ({
+console.log("CHECKOUT ITEMS:", JSON.stringify(items));    
+const line_items = items.map((item) => ({
       price_data: {
         currency: "usd",
         product_data: {
           name: item.name,
         },
-        unit_amount: Math.round(parseFloat(String(item.price).replace(/[^0-9.-]/g, '')) * 100),
-      },
-      quantity: Number(item.quantity || item.qty || 1),
+unit_amount: Math.round(
+  Number(String(item.price ?? item.amount ?? item.unit_price ?? "").replace(/[^0-9.-]/g, "")) * 100
+),      quantity: Number(item.quantity || item.qty || 1),
     }));
 
     const session = await stripe.checkout.sessions.create({
