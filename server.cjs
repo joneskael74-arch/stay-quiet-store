@@ -38,7 +38,7 @@ app.get("/api/me", (req, res) => {
     isAdmin: false
   });
 });
-// -----// ADMIN LOGIN
+// -----// ADMIN LOGIN}
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -62,8 +62,8 @@ app.post("/api/login", async (req, res) => {
       success: false,
       error: "Login failed",
     });
-  });
-
+}
+});
 // LICENSE VERIFICATION
 // --------------------------------------------------
 
