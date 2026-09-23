@@ -191,9 +191,12 @@ setShowAdminDashboard(true)
     if (!window.confirm("Remove this product from the store?")) return
 
     try {
-      setError("")
-      const response = await fetch(`/api/products/${id}`, {
-        method: "DELETE",
+      setError("")     
+ const response = await fetch(`/api/products/${id}`, {        method: "DELETE",
+ 
+headers: {
+  'X-Admin-Token': adminToken.trim()
+},
         credentials: "include"
       })
 
