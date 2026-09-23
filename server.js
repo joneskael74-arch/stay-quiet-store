@@ -1,4 +1,5 @@
 import express from "express";import dotenv from "dotenv";
+import Stripe from "stripe";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
@@ -10,12 +11,12 @@ import fs from "fs";
 
 dotenv.config();
 
-const required = ["MONGODB_URI","JWT_SECRET","ADMIN_EMAIL","ADMIN_PASSWORD"];
+const required = ["MONGODB_URI","JWT_SECRET","ADMIN_EMAIL","ADMIN_PASSWORD","STRIPE_SECRET_KEY"];
 for (const key of required) if (!process.env[key]) {
   console.error(`Missing ${key} in .env`);
   process.exit(1);
 }
-
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const client = new MongoClient(process.env.MONGODB_URI);
@@ -172,12 +173,40 @@ app.post("/api/verify-license", async (req, res) => {
   }
 });
 
-app.use(express.static(path.join(process.cwd(), "dist")));
 
-app.get("/{*splat}", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "dist", "index.html"));
+
+
+
+app.post("/api/checkout", async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Your bag is empty" });
+    }
+
+    const line_items = items.map((item) => ({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: item.name,
+        },
+        unit_amount: Math.round(Number(item.price) * 100),
+      },
+      quantity: Number(item.quantity || item.qty || 1),
+    }));
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items,
+      success_url: `${req.protocol}://${req.get("host")}/?checkout=success`,
+      cancel_url: `${req.protocol}://${req.get("host")}/?checkout=cancelled`,
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Stripe checkout error:", error);
+    res.status(500).json({ error: "Unable to start checkout" });
+  }
 });
-
-
-
 app.listen(PORT, () => console.log(`STAY QUIET server running on port ${PORT}`));
