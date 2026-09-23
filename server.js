@@ -33,7 +33,7 @@ const upload = multer({ dest: uploadDir, limits: { fileSize: 8 * 1024 * 1024 } }
 
 app.use(express.json({ limit: "15mb" }));
 app.use(cookieParser());
-app.use(express.static("public"));
+app.use(express.static("dist"));
 app.use("/uploads", express.static(uploadDir));
 
 const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
