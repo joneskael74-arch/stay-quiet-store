@@ -2,6 +2,7 @@ import adminDashboardBg from "./assets/admin-dashboard-bg.png";
 import { useEffect, useMemo, useRef, useState } from 'react'
 import logo from './assets/logo.png'
 import heroImage from './assets/stay-quiet-hero.png'
+import LicenseAccess from './LicenseAccess'
 
 type Product = {
   id: string
