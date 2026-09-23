@@ -191,7 +191,7 @@ app.post("/api/checkout", async (req, res) => {
         product_data: {
           name: item.name,
         },
-        unit_amount: Math.round(Number(item.price) * 100),
+        unit_amount: Math.round(parseFloat(String(item.price).replace(/[^0-9.-]/g, '')) * 100),
       },
       quantity: Number(item.quantity || item.qty || 1),
     }));
