@@ -72,7 +72,7 @@ app.get("/api/products", async (req,res) => {
 
 app.get("/api/store/products", async (req,res) => {
   const data = await products.find({status:"published"}).sort({createdAt:-1}).toArray();
-  res.json(data);
+  res.json(data.map(({ _id, ...product }) => ({ ...product, id: _id.toString() })));
 });
 
 app.post("/api/products", auth, async (req,res) => {

@@ -44,6 +44,7 @@ const [showRemovePanel, setShowRemovePanel] = useState(false)
   const [adminPassword, setAdminPassword] = useState('')
   const [showAdminLogin, setShowAdminLogin] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+const [showCustomerPage, setShowCustomerPage] = useState(false)
   const [form, setForm] = useState<AddForm>({ name: '', price: '', category: '', tag: '', image: '' })
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -224,6 +225,7 @@ headers: {
     const status = params.get('checkout')
     if (status === 'success') {
       setCart([])
+setShowCustomerPage(true)
       setError('Payment successful — thank you for your order.')
       window.history.replaceState({}, '', window.location.pathname)
     } else if (status === 'cancelled') {
