@@ -38,15 +38,40 @@ app.get("/api/me", (req, res) => {
     isAdmin: false
   });
 });
-// -----// ADMIN LOGIN}
+// -----// ADMIN LOGIN
+const ADMIN_ACCOUNTS = [
+  {
+    email: process.env.ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD
+  },
+  {
+    email: process.env.ADMIN2_EMAIL,
+    password: process.env.ADMIN2_PASSWORD
+  },
+  {
+    email: process.env.ADMIN3_EMAIL,
+    password: process.env.ADMIN3_PASSWORD
+  },
+  {
+    email: process.env.ADMIN4_EMAIL,
+    password: process.env.ADMIN4_PASSWORD
+  }
+];
+
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (
-      email !== process.env.ADMIN_EMAIL ||
-      password !== process.env.ADMIN_PASSWORD
-    ) {
+const admin = ADMIN_ACCOUNTS.find(
+  (account) =>
+    account.email === email &&
+    account.password === password
+);
+
+if (!admin) {
+
+
+
       return res.status(401).json({
         success: false,
         error: "Invalid email or password",
@@ -62,11 +87,11 @@ app.post("/api/login", async (req, res) => {
       success: false,
       error: "Login failed",
     });
-}
+ } 
 });
 // LICENSE VERIFICATION
 // --------------------------------------------------
-
+  
 app.post("/api/verify-license", async (req, res) => {
 try {
 const { licenseKey } = req.body;
