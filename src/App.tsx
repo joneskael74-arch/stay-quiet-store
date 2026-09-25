@@ -48,6 +48,7 @@ const [showRemovePanel, setShowRemovePanel] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 const [showCustomerPage, setShowCustomerPage] = useState(false)
   const [form, setForm] = useState<AddForm>({ name: '', price: '', category: '', tag: '', imageUrl: '' })
+  const [imageError, setImageError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -127,31 +128,39 @@ setShowAdminDashboard(true)
   function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    e.target.value = ''
+    setImageError('')
     if (file.size > 10 * 1024 * 1024) {
-      setError('Product images must be 10 MB or smaller.')
+      setImageError('Product images must be 10 MB or smaller.')
       return
     }
     const reader = new FileReader()
     reader.onload = () => {
-  const original = String(reader.result || '')
+      const original = String(reader.result || '')
+      if (file.type === 'image/gif') {
+        setForm(f => ({ ...f, imageUrl: original }))
+        return
+      }
 
-  if (file.type === 'image/gif') {
-    setForm(f => ({ ...f, image: original }))
-    return
-  }
-
-  const picture = new Image()
-  picture.onload = () => {
-    const scale = Math.min(1, 900 / Math.max(picture.width, picture.height))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(picture.width * scale))
-    canvas.height = Math.max(1, Math.round(picture.height * scale))
-    canvas.getContext('2d')?.drawImage(picture, 0, 0, canvas.width, canvas.height)
-    setForm(f => ({ ...f, image: canvas.toDataURL('image/webp', 0.72) }))
-  }
-  picture.onerror = () => setError('Could not read product image.')
-  picture.src = original
-}
+      const picture = new Image()
+      picture.onload = () => {
+        try {
+          const scale = Math.min(1, 900 / Math.max(picture.width, picture.height))
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.max(1, Math.round(picture.width * scale))
+          canvas.height = Math.max(1, Math.round(picture.height * scale))
+          const context = canvas.getContext('2d')
+          if (!context) throw new Error('Canvas is unavailable')
+          context.drawImage(picture, 0, 0, canvas.width, canvas.height)
+          setForm(f => ({ ...f, imageUrl: canvas.toDataURL('image/webp', 0.72) }))
+        } catch {
+          setImageError('Could not prepare product image. Try another PNG or JPEG.')
+        }
+      }
+      picture.onerror = () => setImageError('Could not read product image. Try a PNG, JPEG, or GIF.')
+      picture.src = original
+    }
+    reader.onerror = () => setImageError('Could not open product image. Try choosing it again.')
     reader.readAsDataURL(file)
   }
 
@@ -535,7 +544,7 @@ const checkoutParams = new URLSearchParams(window.location.search)
     </div>
   </div>
 )}
- {showAddPanel && <Overlay onClose={() => setShowAddPanel(false)}><h3 style={headingStyle}>Add Product</h3><p style={{ color: '#aaa6a0', fontSize: 12, lineHeight: 1.5 }}>This creates a real product in MongoDB. Your admin token is only sent to your Vercel API and is never stored in the browser.</p><label style={labelStyle}>Admin Token</label><input value={adminToken} onChange={e => setAdminToken(e.target.value)} type="password" style={inputStyle} /><label style={labelStyle}>Product Image</label><div onClick={() => fileRef.current?.click()} style={{ border: '1px dashed #2e2e2a', height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#0f0f0d', overflow: 'hidden' }}>{form.imageUrl ? <img src={form.imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#4a4845', fontSize: 12 }}>Click to upload image (10 MB max)</span>}</div><input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} /><label style={labelStyle}>Product Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FiveM / LUA Executor" style={inputStyle} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}><div><label style={labelStyle}>Price (USD) *</label><input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="29.99" type="number" min="0" step="0.01" style={inputStyle} /></div><div><label style={labelStyle}>Category</label><input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Scripts" style={inputStyle} /></div></div><label style={labelStyle}>Badge</label><input value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} placeholder="New, Sale, Hot" style={inputStyle} /><button onClick={handleAddProduct} disabled={!form.name.trim() || !form.price.trim() || !adminToken.trim()} style={primaryButton}>Add to Shop</button></Overlay>}
+ {showAddPanel && <Overlay onClose={() => setShowAddPanel(false)}><h3 style={headingStyle}>Add Product</h3><p style={{ color: '#aaa6a0', fontSize: 12, lineHeight: 1.5 }}>This creates a real product in MongoDB. Your admin token is only sent to your Vercel API and is never stored in the browser.</p><label style={labelStyle}>Admin Token</label><input value={adminToken} onChange={e => setAdminToken(e.target.value)} type="password" style={inputStyle} /><label style={labelStyle}>Product Image</label><div onClick={() => fileRef.current?.click()} style={{ border: '1px dashed #2e2e2a', height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#0f0f0d', overflow: 'hidden' }}>{form.imageUrl ? <img src={form.imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#4a4845', fontSize: 12 }}>Click to upload image (10 MB max)</span>}</div><input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} />{imageError && <p role="alert" style={{ color: '#f1a4a4', fontSize: 12 }}>{imageError}</p>}<label style={labelStyle}>Product Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FiveM / LUA Executor" style={inputStyle} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}><div><label style={labelStyle}>Price (USD) *</label><input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="29.99" type="number" min="0" step="0.01" style={inputStyle} /></div><div><label style={labelStyle}>Category</label><input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Scripts" style={inputStyle} /></div></div><label style={labelStyle}>Badge</label><input value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} placeholder="New, Sale, Hot" style={inputStyle} /><button onClick={handleAddProduct} disabled={!form.name.trim() || !form.price.trim() || !adminToken.trim()} style={primaryButton}>Add to Shop</button></Overlay>}
 {showRemovePanel && (
   <Overlay onClose={() => setShowRemovePanel(false)}>
     <h3 style={headingStyle}>Remove Product</h3>
