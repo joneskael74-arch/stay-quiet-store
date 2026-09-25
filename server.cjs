@@ -75,7 +75,7 @@ function makeLicenseKey(sessionId, productId, itemNumber) {
 
   res.sendStatus(200);
 });
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.get("/api/checkout-order", async (req, res) => {
   const sessionId = req.query.session_id;
@@ -168,10 +168,52 @@ message: "STAY QUIET server is running",
 });
 });
 // ADMIN SESSION CHECK
+const SESSION_SECRET = crypto.createHmac(
+  "sha256", process.env.ADMIN_SESSION_SECRET || process.env.LICENSE_KEY_SECRET || process.env.STRIPE_SECRET_KEY
+).update("stay-quiet/admin-session/v1").digest();
+const SESSION_COOKIE = "sq_admin";
+const SESSION_LIFETIME_MS = 8 * 60 * 60 * 1000;
+
+function signedAdminSession(email) {
+  const payload = Buffer.from(JSON.stringify({ email, expires: Date.now() + SESSION_LIFETIME_MS })).toString("base64url");
+  const signature = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function hasAdminSession(req) {
+  try {
+    const cookie = (req.headers.cookie || "").split("; ").find(part => part.startsWith(`${SESSION_COOKIE}=`));
+    if (!cookie) return false;
+    const [payload, signature] = cookie.slice(SESSION_COOKIE.length + 1).split(".");
+    if (!payload || !signature) return false;
+    const expected = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest();
+    const actual = Buffer.from(signature, "base64url");
+    if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return false;
+    const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return typeof session.email === "string" && session.expires > Date.now() &&
+      ADMIN_ACCOUNTS.some(account => account.email && account.password && account.email === session.email);
+  } catch {
+    return false;
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (!hasAdminSession(req)) return res.status(401).json({ error: "Please sign in as an admin again." });
+  const origin = req.get("origin");
+  if (origin) {
+    try {
+      if (new URL(origin).host !== req.get("host")) throw new Error("Mismatched origin");
+    } catch {
+      return res.status(403).json({ error: "Request origin not allowed" });
+    }
+  }
+  next();
+}
+
 app.get("/api/me", (req, res) => {
   res.json({
-    success: false,
-    isAdmin: false
+    success: hasAdminSession(req),
+    isAdmin: hasAdminSession(req)
   });
 });
 // -----// ADMIN LOGIN
@@ -200,6 +242,7 @@ app.post("/api/login", async (req, res) => {
 
 const admin = ADMIN_ACCOUNTS.find(
   (account) =>
+    account.email && account.password &&
     account.email === email &&
     account.password === password
 );
@@ -214,6 +257,10 @@ if (!admin) {
       });
     }
 
+    res.cookie(SESSION_COOKIE, signedAdminSession(email), {
+      httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax",
+      maxAge: SESSION_LIFETIME_MS, path: "/"
+    });
     return res.json({
       success: true,
       message: "Admin login successful",
@@ -224,6 +271,10 @@ if (!admin) {
       error: "Login failed",
     });
  } 
+});
+app.post("/api/logout", (req, res) => {
+  res.clearCookie(SESSION_COOKIE, { path: "/" });
+  res.json({ success: true });
 });
 // LICENSE VERIFICATION
 // --------------------------------------------------
@@ -307,6 +358,55 @@ success: false,
 message: "License verification failed",
 });
 }
+});
+
+// Desktop VPN activation. Product IDs come from the paid Stripe order stored
+// with each key; the request cannot choose its own entitlement.
+const VPN_PRODUCT_TIERS = new Map(
+  [
+    [process.env.SQ_VPN_LEVEL1_PRODUCT_ID, "level1"],
+    [process.env.SQ_VPN_LEVEL2_PRODUCT_ID, "level2"],
+    [process.env.SQ_VPN_MAX_PRODUCT_ID, "max"]
+  ].filter(([id]) => typeof id === "string" && /^[a-f\d]{24}$/i.test(id))
+);
+
+app.post("/api/vpn/verify", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const key = req.body?.key;
+  if (typeof key !== "string" || !/^SQ-[a-f\d]{32}$/i.test(key.trim())) {
+    return res.status(403).json({ status: "invalid" });
+  }
+  if (VPN_PRODUCT_TIERS.size !== 3) {
+    console.error("VPN product IDs are not configured for all three tiers");
+    return res.status(503).json({ status: "unavailable" });
+  }
+
+  try {
+    const hash = crypto.createHash("sha256").update(key.trim().toUpperCase()).digest("hex");
+    const license = await licensesCollection.findOne({ _id: hash });
+    if (!license || license.status !== "active") {
+      return res.status(403).json({ status: "invalid" });
+    }
+
+    const tier = VPN_PRODUCT_TIERS.get(String(license.productId));
+    if (!tier) return res.status(403).json({ status: "invalid" });
+
+    // Older store keys are valid until revoked. New licenses can optionally
+    // include an expiresAt date; expired or malformed dates fail closed.
+    let expiresAt = null;
+    if (license.expiresAt != null) {
+      const expiry = new Date(license.expiresAt);
+      if (!Number.isFinite(expiry.getTime()) || expiry.getTime() <= Date.now()) {
+        return res.status(403).json({ status: "invalid" });
+      }
+      expiresAt = expiry.toISOString();
+    }
+
+    return res.json({ status: "active", tier, expiresAt });
+  } catch (error) {
+    console.error("VPN license lookup failed:", error);
+    return res.status(503).json({ status: "unavailable" });
+  }
 });
 
 // --------------------------------------------------
@@ -438,6 +538,49 @@ app.get("/api/products", async (req, res) => {
   } catch (error) {
     console.error("PRODUCT LOAD ERROR:", error);
     res.status(503).json({ error: "Products could not be loaded" });
+  }
+});
+
+app.post("/api/products", requireAdmin, async (req, res) => {
+  const { name, price, category = "General", tag = null, imageUrl = "" } = req.body || {};
+  const amount = Number(price);
+  if (typeof name !== "string" || !name.trim() || name.length > 150 ||
+      !Number.isFinite(amount) || amount <= 0 || amount > 100000 ||
+      typeof category !== "string" || category.length > 80 ||
+      (tag !== null && (typeof tag !== "string" || tag.length > 80)) ||
+      typeof imageUrl !== "string" || imageUrl.length > 8_000_000 ||
+      (imageUrl && !/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[A-Za-z0-9+/=]+$/i.test(imageUrl))) {
+    return res.status(400).json({ error: "Check the product name, price and image, then try again." });
+  }
+  try {
+    const product = {
+      name: name.trim(), price: amount, category: category.trim() || "General",
+      tag: tag?.trim() || null, imageUrl, active: true,
+      createdAt: new Date(), updatedAt: new Date()
+    };
+    const result = await productsCollection.insertOne(product);
+    res.status(201).json({
+      ...product, id: String(result.insertedId),
+      imageUrl: imageUrl ? `/api/products/${result.insertedId}/image` : ""
+    });
+  } catch (error) {
+    console.error("PRODUCT SAVE ERROR:", error);
+    res.status(503).json({ error: "Could not save the product." });
+  }
+});
+
+app.delete("/api/products/:id", requireAdmin, async (req, res) => {
+  if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: "Invalid product ID" });
+  try {
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { active: false, updatedAt: new Date() } }
+    );
+    if (!result.matchedCount) return res.status(404).json({ error: "Product not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("PRODUCT REMOVE ERROR:", error);
+    res.status(503).json({ error: "Could not remove the product." });
   }
 });
 

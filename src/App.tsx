@@ -190,15 +190,12 @@ setShowAdminDashboard(true)
   }
 
   async function handleAddProduct() {
-    if (!adminToken.trim()) {
-      setError('Enter your admin token before adding a product.')
-      return
-    }
     if (!form.name.trim() || !form.price.trim()) return
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken.trim() },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: form.name.trim(),
           price: Number(form.price),
@@ -207,6 +204,12 @@ setShowAdminDashboard(true)
           imageUrl: form.imageUrl,
         }),
       })
+      if (!(response.headers.get('content-type') || '').includes('application/json')) {
+        const message = response.status === 413
+          ? 'Product image is too large for the server. Try a smaller picture.'
+          : `Product save failed (HTTP ${response.status}). The server returned a webpage instead of a result.`
+        throw new Error(message)
+      }
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Unable to add product')
       setProducts(current => [data, ...current])
@@ -225,9 +228,6 @@ setShowAdminDashboard(true)
       setError("")     
  const response = await fetch(`/api/products/${id}`, {        method: "DELETE",
  
-headers: {
-  'X-Admin-Token': adminToken.trim()
-},
         credentials: "include"
       })
 
@@ -424,7 +424,8 @@ const checkoutParams = new URLSearchParams(window.location.search)
         </div>
 
         <button
-          onClick={() => {
+          onClick={async () => {
+            await fetch('/api/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
             setShowAdminDashboard(false)
             setIsAdmin(false)
             setAdminToken('')
@@ -544,7 +545,7 @@ const checkoutParams = new URLSearchParams(window.location.search)
     </div>
   </div>
 )}
- {showAddPanel && <Overlay onClose={() => setShowAddPanel(false)}><h3 style={headingStyle}>Add Product</h3><p style={{ color: '#aaa6a0', fontSize: 12, lineHeight: 1.5 }}>This creates a real product in MongoDB. Your admin token is only sent to your Vercel API and is never stored in the browser.</p><label style={labelStyle}>Admin Token</label><input value={adminToken} onChange={e => setAdminToken(e.target.value)} type="password" style={inputStyle} /><label style={labelStyle}>Product Image</label><div onClick={() => fileRef.current?.click()} style={{ border: '1px dashed #2e2e2a', height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#0f0f0d', overflow: 'hidden' }}>{form.imageUrl ? <img src={form.imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#4a4845', fontSize: 12 }}>Click to upload image (10 MB max)</span>}</div><input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} />{imageError && <p role="alert" style={{ color: '#f1a4a4', fontSize: 12 }}>{imageError}</p>}<label style={labelStyle}>Product Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FiveM / LUA Executor" style={inputStyle} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}><div><label style={labelStyle}>Price (USD) *</label><input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="29.99" type="number" min="0" step="0.01" style={inputStyle} /></div><div><label style={labelStyle}>Category</label><input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Scripts" style={inputStyle} /></div></div><label style={labelStyle}>Badge</label><input value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} placeholder="New, Sale, Hot" style={inputStyle} /><button onClick={handleAddProduct} disabled={!form.name.trim() || !form.price.trim() || !adminToken.trim()} style={primaryButton}>Add to Shop</button></Overlay>}
+ {showAddPanel && <Overlay onClose={() => setShowAddPanel(false)}><h3 style={headingStyle}>Add Product</h3><p style={{ color: '#aaa6a0', fontSize: 12, lineHeight: 1.5 }}>This creates a product in MongoDB using your admin login.</p><label style={labelStyle}>Product Image</label><div onClick={() => fileRef.current?.click()} style={{ border: '1px dashed #2e2e2a', height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#0f0f0d', overflow: 'hidden' }}>{form.imageUrl ? <img src={form.imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#4a4845', fontSize: 12 }}>Click to upload image (10 MB max)</span>}</div><input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} style={{ display: 'none' }} />{imageError && <p role="alert" style={{ color: '#f1a4a4', fontSize: 12 }}>{imageError}</p>}<label style={labelStyle}>Product Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FiveM / LUA Executor" style={inputStyle} /><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}><div><label style={labelStyle}>Price (USD) *</label><input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="29.99" type="number" min="0" step="0.01" style={inputStyle} /></div><div><label style={labelStyle}>Category</label><input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Scripts" style={inputStyle} /></div></div><label style={labelStyle}>Badge</label><input value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))} placeholder="New, Sale, Hot" style={inputStyle} />{error && <p role="alert" style={{ color: '#f1a4a4', fontSize: 12 }}>{error}</p>}<button onClick={handleAddProduct} disabled={!form.name.trim() || !form.price.trim()} style={primaryButton}>Add to Shop</button></Overlay>}
 {showRemovePanel && (
   <Overlay onClose={() => setShowRemovePanel(false)}>
     <h3 style={headingStyle}>Remove Product</h3>
