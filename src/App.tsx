@@ -1,4 +1,4 @@
-import adminDashboardBg from "./assets/admin-dashboard-bg.png";
+import adminDashboardBg from "./assets/admin-dashboard-bg.gif";
 import { useEffect, useMemo, useRef, useState } from 'react'
 import logo from './assets/logo.png'
 import heroImage from './assets/stay-quiet-hero.png'
