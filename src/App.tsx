@@ -608,4 +608,4 @@ const headingStyle: React.CSSProperties = { fontFamily: 'Fraunces, Georgia, seri
 }
 const primaryButton: React.CSSProperties = { width: '100%', marginTop: '1.25rem', background: '#c9b99a', border: 'none', color: '#0b0b0a', padding: '0.9rem', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }
 const qtyButton: React.CSSProperties = { width: 28, height: 28, background: 'transparent', border: '1px solid #2e2e2a', color: '#ffffff', cursor: 'pointer' }
-const adminCard: React.CSSProperties = { background: '#111', padding: 20, border: '1px solid #444' }
+const adminCard: React.CSSProperties = { background: 'rgba(17, 17, 17, 0.72)', padding: 20, border: '1px solid #444' }
