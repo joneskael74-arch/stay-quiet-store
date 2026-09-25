@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import logo from './assets/logo.png'
 import heroImage from './assets/stay-quiet-hero.png'
 import LicenseAccess from './LicenseAccess'
-
+import CheckoutSuccess from './CheckoutSuccess'
 type Product = {
   id: string
   name: string
@@ -28,7 +28,9 @@ const CART_KEY = 'sq_cart'
 export default function App() {
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]') } catch { return [] }
+   return JSON.parse(localStorage.getItem(CART_KEY) || '[]').filter(
+  (item: CartItem) => typeof item?.id === 'string' && item.id.length > 0 && Number.isInteger(item.quantity) && item.quantity > 0
+)
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -60,7 +62,7 @@ const [showCustomerPage, setShowCustomerPage] = useState(false)
         const response = await fetch('/api/me', {
           credentials: 'include'
         })
-        if (response.ok) {
+     if (response.ok && (await response.json()).success === true) {
           setIsAdmin(true)
 setAdminToken("admin")
 setShowAdminDashboard(true)
@@ -130,7 +132,26 @@ setShowAdminDashboard(true)
       return
     }
     const reader = new FileReader()
-    reader.onload = () => setForm(f => ({ ...f, image: String(reader.result || '') }))
+    reader.onload = () => {
+  const original = String(reader.result || '')
+
+  if (file.type === 'image/gif') {
+    setForm(f => ({ ...f, image: original }))
+    return
+  }
+
+  const picture = new Image()
+  picture.onload = () => {
+    const scale = Math.min(1, 900 / Math.max(picture.width, picture.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(picture.width * scale))
+    canvas.height = Math.max(1, Math.round(picture.height * scale))
+    canvas.getContext('2d')?.drawImage(picture, 0, 0, canvas.width, canvas.height)
+    setForm(f => ({ ...f, image: canvas.toDataURL('image/webp', 0.72) }))
+  }
+  picture.onerror = () => setError('Could not read product image.')
+  picture.src = original
+}
     reader.readAsDataURL(file)
   }
 
@@ -227,13 +248,21 @@ headers: {
       setCart([])
 setShowCustomerPage(true)
       setError('Payment successful — thank you for your order.')
-      window.history.replaceState({}, '', window.location.pathname)
+     
     } else if (status === 'cancelled') {
       setError('Checkout was cancelled. Your cart is still here.')
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
+const checkoutParams = new URLSearchParams(window.location.search)
+  const paidSessionId =
+    checkoutParams.get('checkout') === 'success'
+      ? checkoutParams.get('session_id')
+      : null
 
+  if (paidSessionId) {
+    return <CheckoutSuccess sessionId={paidSessionId} />
+  }
   return (
     <div style={{ background: '#050505', color: '#ffffff', fontFamily: 'Outfit, system-ui, sans-serif', minHeight: '100vh' }}>
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2.5rem', height: '64px', background: 'rgba(11,11,10,0.88)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1e1e1b' }}>
@@ -343,75 +372,47 @@ setShowCustomerPage(true)
 
       {showCart && <Overlay onClose={() => setShowCart(false)}><h3 style={headingStyle}>Your Bag</h3>{cartProducts.length === 0 ? <p style={{ color: '#aaa6a0' }}>Your bag is empty.</p> : <><div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>{cartProducts.map(({ item, product }) => <div key={item.id} style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', borderBottom: '1px solid #252521', paddingBottom: '1rem' }}>{product.imageUrl && <img src={product.imageUrl} alt="" style={{ width: 56, height: 56, objectFit: 'cover' }} />}<div style={{ flex: 1 }}><div style={{ fontSize: 13 }}>{product.name}</div><div style={{ color: '#aaa6a0', fontSize: 12 }}>${product.price.toFixed(2)}</div></div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><button onClick={() => changeQuantity(item.id, item.quantity - 1)} style={qtyButton}>−</button><span>{item.quantity}</span><button onClick={() => changeQuantity(item.id, item.quantity + 1)} style={qtyButton}>+</button></div></div>)}</div><div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><span>Total</span><strong>${cartTotal.toFixed(2)}</strong></div><button onClick={checkout} disabled={checkoutLoading} style={primaryButton}>{checkoutLoading ? 'Opening Checkout…' : 'Checkout with Stripe'}</button></>}</Overlay>}
 {showAdminDashboard && (
-  <div
+  <div className="sq-admin-dashboard"
     style={{
       position: 'fixed',
       inset: 0,
       zIndex: 90,
       minHeight: '100vh',
-      backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.75)), url(${adminDashboardBg})`,
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.75)), url(${adminDashboardBg})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
       color: '#fff',
-      padding: '40px',
-      overflowY: 'auto'
+      padding: '30px',
+      overflowY: 'auto',
     }}
   >
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 38, marginBottom: 5 }}>
-        STAY QUIET! ADMIN
-      </h1>
+    <aside className="sq-admin-sidebar">
+  <h2>STAY QUIET!</h2>
+  <p>ADMIN PANEL</p>
+  <button onClick={() => setShowAddPanel(true)}>＋ Add Product</button>
+  <button onClick={() => setShowRemovePanel(true)}>▣ Manage Products</button>
+  <button onClick={() => {
+    setShowAdminDashboard(false)
+    document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' })
+  }}>↗ View Store</button>
+</aside>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
-      <p style={{ color: '#d0d0d0', marginBottom: 30 }}>
-        ADMIN CONTROL CENTER
-      </p>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 18
-        }}
-      >
-        <button
-          onClick={() => {
-            setShowAdminDashboard(false)
-            setShowAddPanel(true)
-          }}
-          style={primaryButton}
-        >
-          ＋ ADD PRODUCT
-        </button>
-
-        <button
-          onClick={() => {
-            setShowAdminDashboard(false)
-            setShowRemovePanel(true)
-          }}
-          style={primaryButton}
-        >
-          − REMOVE PRODUCT
-        </button>
-
-        <button
-          onClick={() => {
-            document.getElementById('shop')?.scrollIntoView({
-              behavior: 'smooth'
-            })
-            setShowAdminDashboard(false)
-          }}
-          style={primaryButton}
-        >
-          VIEW STORE
-        </button>
-
-        <button
-          onClick={() => window.location.reload()}
-          style={primaryButton}
-        >
-          REFRESH STORE
-        </button>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 30
+      }}>
+        <div>
+          <h1 style={{ fontSize: 38, margin: 0 }}>
+            STAY QUIET! ADMIN
+          </h1>
+          <p style={{ color: '#65ff8a', marginTop: 8 }}>
+            SAME WORLD DIFFERENT MINDSET
+          </p>
+        </div>
 
         <button
           onClick={() => {
@@ -424,6 +425,113 @@ setShowCustomerPage(true)
           LOG OUT
         </button>
       </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: 15,
+        marginBottom: 25
+      }}>
+        <div style={adminCard}>
+          <div>TOTAL ORDERS</div>
+          <h2>0</h2>
+        </div>
+
+        <div style={adminCard}>
+          <div>TOTAL REVENUE</div>
+          <h2>$0.00</h2>
+        </div>
+
+        <div style={adminCard}>
+          <div>TOTAL PRODUCTS</div>
+          <h2>{products.length}</h2>
+        </div>
+
+        <div style={adminCard}>
+          <div>TOTAL CUSTOMERS</div>
+          <h2>0</h2>
+        </div>
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: 15
+      }}>
+
+        <button
+          onClick={() => setShowAddPanel(true)}
+          style={primaryButton}
+        >
+          ＋ ADD PRODUCT
+        </button>
+
+        <button
+          onClick={() => setShowRemovePanel(true)}
+          style={primaryButton}
+        >
+          🗑 REMOVE PRODUCT
+        </button>
+
+        <button
+          onClick={() => setShowRemovePanel(true)}
+          style={primaryButton}
+        >
+          📦 MANAGE PRODUCTS
+        </button>
+
+        <button
+          onClick={() => {
+            setShowAdminDashboard(false)
+            document.getElementById('shop')?.scrollIntoView({
+              behavior: 'smooth'
+            })
+          }}
+          style={primaryButton}
+        >
+          ↗ VIEW STORE
+        </button>
+      </div>
+
+      <div style={{
+        ...adminCard,
+        marginTop: 25
+      }}>
+        <h2 style={{ marginTop: 0 }}>ADMIN CONTROL CENTER</h2>
+
+        <p style={{ color: '#aaa' }}>
+          Manage your Stay Quiet store from one place.
+        </p>
+
+        <div style={{
+          display: 'flex',
+          gap: 15,
+          flexWrap: 'wrap',
+          marginTop: 20
+        }}>
+          <button
+            onClick={() => setShowAddPanel(true)}
+            style={primaryButton}
+          >
+            ADD PRODUCT
+          </button>
+
+          <button
+            onClick={() => setShowRemovePanel(true)}
+            style={primaryButton}
+          >
+            REMOVE PRODUCT
+          </button>
+
+          <button
+            onClick={() => window.location.reload()}
+            style={primaryButton}
+          >
+            REFRESH STORE
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 )}
@@ -490,11 +598,14 @@ function ProductCard({ product, added, onAdd, adminToken, onRemove }: { product:
   >
     Remove Product
   </button>
+
 )}</div><div style={{ padding: '1rem 0.75rem' }}><p style={{ fontSize: 9, color: '#4a4845', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.35rem' }}>{product.category}</p><p style={{ fontSize: 14, color: '#e0dbd2', marginBottom: '0.25rem' }}>{product.name}</p><p style={{ fontSize: 13, color: '#aaa6a0' }}>${product.price.toFixed(2)}</p></div></div>
 }
 
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#aaa6a0', margin: '1rem 0 0.5rem' }
 const inputStyle: React.CSSProperties = { width: '100%', background: '#0f0f0d', border: '1px solid #252521', color: '#ffffff', padding: '0.7rem 0.9rem', fontSize: 13, fontFamily: 'Outfit, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }
-const headingStyle: React.CSSProperties = { fontFamily: 'Fraunces, Georgia, serif', fontWeight: 300, fontSize: '1.5rem', margin: '0 0 1.5rem' }
+const headingStyle: React.CSSProperties = { fontFamily: 'Fraunces, Georgia, serif', fontWeight: 300, fontSize: '1.5rem', margin: '0 0 1.5rem' 
+}
 const primaryButton: React.CSSProperties = { width: '100%', marginTop: '1.25rem', background: '#c9b99a', border: 'none', color: '#0b0b0a', padding: '0.9rem', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer' }
 const qtyButton: React.CSSProperties = { width: 28, height: 28, background: 'transparent', border: '1px solid #2e2e2a', color: '#ffffff', cursor: 'pointer' }
+const adminCard: React.CSSProperties = { background: '#111', padding: 20, border: '1px solid #444' }
