@@ -334,9 +334,11 @@ console.log("CHECKOUT ITEMS:", JSON.stringify(items));
 
 
 const line_items = await Promise.all(items.map(async (item) => {
-  if (!ObjectId.isValid(item.id) ||
-      !Number.isInteger(item.quantity) ||
-      item.quantity < 1) {
+  if (
+    !ObjectId.isValid(item.id) ||
+    !Number.isInteger(item.quantity) ||
+    item.quantity < 1
+  ) {
     throw new Error("Invalid cart item");
   }
 
@@ -345,8 +347,13 @@ const line_items = await Promise.all(items.map(async (item) => {
     active: { $ne: false }
   });
 
-  const unit_amount = Math.round(Number(product?.price) * 100);
-  if (!product || !Number.isSafeInteger(unit_amount) || unit_amount <= 0) {
+  if (!product) {
+    throw new Error("Invalid product");
+  }
+
+  const unit_amount = Math.round(Number(product.price) * 100);
+
+  if (!Number.isSafeInteger(unit_amount) || unit_amount <= 0) {
     throw new Error("Invalid product or price");
   }
 
@@ -354,14 +361,17 @@ const line_items = await Promise.all(items.map(async (item) => {
     price_data: {
       currency: "usd",
       product_data: {
-  name: product.name,
-  metadata: { productId: String(product._id) }
-},
-      unit_amount
+        name: product.name,
+        metadata: {
+          productId: String(product._id)
+        }
+      },
+      unit_amount: unit_amount
     },
     quantity: item.quantity
   };
 }));
+
  
 const host = req.get("host");
 const protocol = req.protocol;
@@ -393,7 +403,7 @@ error
 );
 
 return res.status(500).json({
-error: "Unable to start checkout",
+error:      "Unable to start checkout",
 });
 }
 });
