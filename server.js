@@ -23,6 +23,113 @@ const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
 const db = client.db(process.env.MONGODB_DB || "stayquiet");
 const products = db.collection("products");
+const vpnServers = db.collection("vpnServers");
+ 
+// ===== STAY QUIET VPN SERVER CONFIG API =====
+
+app.post("/api/vpn/config", async (req, res) => {
+  try {
+    const { key, serverId, tier } = req.body || {};
+
+    if (!key || !serverId) {
+      return res.status(400).json({
+        success: false,
+        message: "License key and server ID are required"
+      });
+    }
+
+    const cleanKey = String(key).trim().toUpperCase();
+
+    const keyHash = crypto
+      .createHash("sha256")
+      .update(cleanKey)
+      .digest("hex");
+
+    const license = await db.collection("licenses").findOne({
+      keyHash,
+      active: true
+    });
+
+    if (!license) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or inactive license"
+      });
+    }
+
+    if (license.expiresAt && new Date(license.expiresAt) <= new Date()) {
+      return res.status(401).json({
+        success: false,
+        message: "License expired"
+      });
+    }
+
+    const requestedTier = String(tier || "").toLowerCase();
+
+    if (
+      requestedTier &&
+      license.tier &&
+      String(license.tier).toLowerCase() !== requestedTier
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "License tier does not match"
+      });
+    }
+
+    const server = await vpnServers.findOne({
+      id: String(serverId),
+      active: true
+    });
+
+    if (!server || !server.config) {
+      return res.status(404).json({
+        success: false,
+        message: "VPN configuration is not available for this server"
+      });
+    }
+
+    return res.json({
+      success: true,
+      server: {
+        id: server.id,
+        name: server.name
+      },
+      config: server.config
+    });
+  } catch (error) {
+    console.error("VPN config error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to prepare VPN configuration"
+    });
+  }
+});
+
+app.get("/api/vpn/servers", async (req, res) => {
+  try {
+    const servers = await vpnServers.find({
+      active: { $ne: false }
+    }).project({
+      _id: 0,
+      id: 1,
+      name: 1,
+      tier: 1
+    }).toArray();
+
+    res.json({
+      success: true,
+      servers
+    });
+  } catch (error) {
+    console.error("VPN server list error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Unable to load VPN servers"
+    });
+  }
+});
+
 
 await products.createIndex({ createdAt: -1 });
 await products.createIndex({ status: 1 });
@@ -176,7 +283,6 @@ app.post("/api/verify-license", async (req, res) => {
 
 
 
-
 app.post("/api/checkout", async (req, res) => {
   try {
     const { items } = req.body;
@@ -185,17 +291,44 @@ app.post("/api/checkout", async (req, res) => {
       return res.status(400).json({ error: "Your bag is empty" });
     }
 
-console.log("CHECKOUT ITEMS:", JSON.stringify(items));    
-const line_items = items.map((item) => ({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: item.name,
+    console.log("CHECKOUT ITEMS:", JSON.stringify(items));
+
+    const line_items = items.map((item) => {
+      const rawPrice =
+        item.price ??
+        item.amount ??
+        item.unit_price ??
+        "0";
+
+      const unit_amount = Math.round(
+        Number(String(rawPrice).replace(/[^0-9.-]/g, "")) * 100
+      );
+
+      const productData = {
+        name: item.name || "STAY QUIET Product",
+      };
+
+      // Add product picture if your bag item contains an image URL
+      const image =
+        item.image ||
+        item.imageUrl ||
+        item.image_url ||
+        item.picture ||
+        null;
+
+      if (image && /^https?:\/\//i.test(image)) {
+        productData.images = [image];
+      }
+
+      return {
+        price_data: {
+          currency: "usd",
+          product_data: productData,
+          unit_amount,
         },
-unit_amount: Math.round(
-  Number(String(item.price ?? item.amount ?? item.unit_price ?? "").replace(/[^0-9.-]/g, "")) * 100
-),      quantity: Number(item.quantity || item.qty || 1),
-    }));
+        quantity: Number(item.quantity || item.qty || 1),
+      };
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -210,4 +343,5 @@ unit_amount: Math.round(
     res.status(500).json({ error: "Unable to start checkout" });
   }
 });
+
 app.listen(PORT, () => console.log(`STAY QUIET server running on port ${PORT}`));
