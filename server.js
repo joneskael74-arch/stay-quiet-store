@@ -296,6 +296,71 @@ app.post(["/api/verify-license", "/api/vpn/verify"], async (req, res) => {
 
 
 
+
+app.post("/api/vpn/verify", async (req, res) => {
+  try {
+    const { key, appTier } = req.body || {};
+
+    if (!key) {
+      return res.status(400).json({
+        success: false,
+        message: "License key required"
+      });
+    }
+
+    const cleanKey = String(key).trim().toUpperCase();
+
+    const keyHash = crypto
+      .createHash("sha256")
+      .update(cleanKey)
+      .digest("hex");
+
+    const license = await db.collection("licenses").findOne({
+      active: true,
+      keyHash
+    });
+
+    if (!license) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or inactive license"
+      });
+    }
+
+    if (
+      appTier &&
+      license.tier &&
+      String(license.tier).toLowerCase() !== String(appTier).toLowerCase()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "License tier does not match"
+      });
+    }
+
+    if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
+      return res.status(401).json({
+        success: false,
+        message: "License expired"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      active: true,
+      tier: license.tier || license.appTier || null,
+      expiresAt: license.expiresAt || null,
+      products: license.products || []
+    });
+  } catch (error) {
+    console.error("VPN license verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "License verification failed"
+    });
+  }
+});
+
 app.post("/api/checkout", async (req, res) => {
   try {
     const { items } = req.body;

@@ -16,7 +16,11 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       const products = await collection.find({ active: { $ne: false } }).sort({ createdAt: -1 }).toArray()
-      return res.status(200).json(products.map(({ _id, ...product }) => ({ ...product, id: String(_id) })))
+      return res.status(200).json(products.map(({ _id, ...product }) => ({
+        ...product,
+        id: String(_id),
+        imageUrl: product.imageUrl || product.image || '',
+      })))
     }
 
     if (req.method === 'POST') {
@@ -25,7 +29,7 @@ export default async function handler(req, res) {
       }
 
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}
-      const { name, price, category = 'General', image = '', tag = null } = body
+      const { name, price, category = 'General', imageUrl = '', tag = null } = body
       const numericPrice = Number(price)
 
       if (!name?.trim() || !Number.isFinite(numericPrice) || numericPrice < 0) {
@@ -36,7 +40,7 @@ export default async function handler(req, res) {
         name: name.trim(),
         price: Math.round(numericPrice * 100) / 100,
         category: String(category || 'General'),
-        image: String(image || ''),
+        imageUrl: String(imageUrl || ''),
         tag: tag ? String(tag) : null,
         active: true,
         createdAt: new Date(),
