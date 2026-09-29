@@ -82,7 +82,7 @@ setShowAdminDashboard(true)
       const response = await fetch('/api/products')
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Unable to load products')
-      setProducts(data)
+      setProducts(data.map((product: Product & { _id: string }) => ({ ...product, id: product._id })))
       setError('')
     } catch (err) {
       console.error(err)
