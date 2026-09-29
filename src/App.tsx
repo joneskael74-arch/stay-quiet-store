@@ -331,6 +331,18 @@ const checkoutParams = new URLSearchParams(window.location.search)
         {filtered.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1px', background: '#1e1e1b', border: '1px solid #1e1e1b' }}>{filtered.map(product => <ProductCard key={product.id} product={product} added={addedId === product.id} onAdd={() => addToCart(product.id)} adminToken={isAdmin ? "admin" : ""} onRemove={() => removeProduct(product.id)} />)}</div>}
       </section>
 
+      <section style={{ padding: '4rem 6%', background: '#050505', borderTop: '1px solid #1e1e1b' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <h2 style={{ fontFamily: 'Fraunces, Georgia, serif', fontWeight: 300, fontSize: '2rem', marginBottom: '0.75rem' }}>
+            Access Your License
+          </h2>
+          <p style={{ color: '#888', fontSize: '13px', marginBottom: '1.5rem' }}>
+            Enter the license key you received after your purchase to access your download.
+          </p>
+          <LicenseAccess />
+        </div>
+      </section>
+
       <footer style={{ borderTop: '1px solid #1e1e1b', padding: '3rem 6%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}><p style={{ fontFamily: 'Fraunces, Georgia, serif', fontWeight: 300, letterSpacing: '0.2em', textTransform: 'uppercase', fontSize: '0.85rem' }}>Stay Quiet</p><a href="https://discord.gg/GJQRSVn3F" target="_blank" rel="noopener noreferrer" style={{ color: '#c9b99a', textDecoration: 'none', fontSize: '12px', letterSpacing: '0.12em', textTransform: 'uppercase', border: '1px solid #2e2e2a', padding: '0.6rem 1.2rem' }}>Join our Discord</a><p style={{ fontSize: '11px', color: '#3a3835' }}>© 2026 Stay Quiet. All rights reserved.</p></footer>
 
       {showAdminLogin && (
