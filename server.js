@@ -238,7 +238,7 @@ app.post("/api/upload", auth, upload.single("image"), (req,res) => {
   res.json({url:`/uploads/${path.basename(target)}`});
 });
 
-app.post("/api/verify-license", async (req, res) => {
+app.post(["/api/verify-license", "/api/vpn/verify"], async (req, res) => {
   try {
     const { key } = req.body || {};
 
@@ -277,6 +277,9 @@ app.post("/api/verify-license", async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      active: true,
+      tier: license.tier || license.appTier || null,
+      expiresAt: license.expiresAt || null,
       products: license.products || []
     });
 
@@ -303,42 +306,47 @@ app.post("/api/checkout", async (req, res) => {
 
     console.log("CHECKOUT ITEMS:", JSON.stringify(items));
 
-    const line_items = items.map((item) => {
-      const rawPrice =
-        item.price ??
-        item.amount ??
-        item.unit_price ??
-        "0";
+    const line_items = await Promise.all(items.map(async (item) => {
+  let product = null;
 
-      const unit_amount = Math.round(
-        Number(String(rawPrice).replace(/[^0-9.-]/g, "")) * 100
-      );
+  try {
+    product = await products.findOne({ _id: new ObjectId(String(item.id)) });
+  } catch (_) {}
 
-      const productData = {
-        name: item.name || "STAY QUIET Product",
-      };
+  if (!product) {
+    throw new Error(`Product not found: ${item.id}`);
+  }
 
-      // Add product picture if your bag item contains an image URL
-      const image =
-        item.image ||
-        item.imageUrl ||
-        item.image_url ||
-        item.picture ||
-        null;
+  const unit_amount = Math.round(Number(product.price || 0) * 100);
 
-      if (image && /^https?:\/\//i.test(image)) {
-        productData.images = [image];
-      }
+  if (!Number.isFinite(unit_amount) || unit_amount <= 0) {
+    throw new Error(`Product has an invalid price: ${product.name || item.id}`);
+  }
 
-      return {
-        price_data: {
-          currency: "usd",
-          product_data: productData,
-          unit_amount,
-        },
-        quantity: Number(item.quantity || item.qty || 1),
-      };
-    });
+  const productData = {
+    name: product.name || "STAY QUIET Product",
+  };
+
+  const image =
+    product.image ||
+    product.imageUrl ||
+    product.image_url ||
+    product.picture ||
+    null;
+
+  if (image && /^https?:\/\//i.test(image)) {
+    productData.images = [image];
+  }
+
+  return {
+    price_data: {
+      currency: "usd",
+      product_data: productData,
+      unit_amount,
+    },
+    quantity: Number(item.quantity || item.qty || 1),
+  };
+}));
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
