@@ -82,7 +82,10 @@ setShowAdminDashboard(true)
       const response = await fetch('/api/products')
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Unable to load products')
-      setProducts(data.map((product: Product & { _id: string }) => ({ ...product, id: product._id })))
+      setProducts(data.map((product: Product & { _id?: string }) => ({
+        ...product,
+        id: product.id || product._id || '',
+      })))
       setError('')
     } catch (err) {
       console.error(err)
@@ -110,7 +113,7 @@ setShowAdminDashboard(true)
     if (!cart.length) return
     try {
       setCheckoutLoading(true)
-      setError('')
+     setError('')
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -328,8 +331,8 @@ const checkoutParams = new URLSearchParams(window.location.search)
         {error && <div style={{ marginBottom: '1.5rem', padding: '0.9rem 1rem', border: '1px solid #3a3835', color: '#c9b99a', fontSize: '12px' }}>{error}</div>}
         {loading && <div style={{ textAlign: 'center', padding: '6rem 2rem', color: '#aaa6a0' }}>Loading products…</div>}
         {!loading && products.length === 0 && <div style={{ textAlign: 'center', padding: '6rem 2rem', border: '1px dashed #2e2e2a' }}><p style={{ fontFamily: 'Fraunces, Georgia, serif', fontStyle: 'italic', fontSize: '1.4rem', color: '#3a3835', marginBottom: '1rem' }}>No products yet</p><p style={{ color: '#4a4845', fontSize: '13px' }}>Use Add Product to create your first database-backed item.</p></div>}
-        {filtered.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1px', background: '#1e1e1b', border: '1px solid #1e1e1b' }}>{filtered.map(product => <ProductCard key={product.id} product={product} added={addedId === product.id} onAdd={() => addToCart(product.id)} adminToken={isAdmin ? "admin" : ""} onRemove={() => removeProduct(product.id)} />)}</div>}
-      </section>
+      
+      </section>  {filtered.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1px', background: '#1e1e1b', border: '1px solid #1e1e1b' }}>{filtered.map(product => <ProductCard key={product.id} product={product} added={addedId === product.id} onAdd={() => addToCart(product.id)} adminToken={isAdmin ? "admin" : ""} onRemove={() => removeProduct(product.id)} />)}</div>}
 
       <section style={{ padding: '4rem 6%', background: '#050505', borderTop: '1px solid #1e1e1b' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
