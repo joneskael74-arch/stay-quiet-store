@@ -27,6 +27,8 @@ const vpnServers = db.collection("vpnServers");
  
 // ===== STAY QUIET VPN SERVER CONFIG API =====
 
+app.use(express.json({ limit: "15mb" }));
+
 app.post("/api/vpn/config", async (req, res) => {
   try {
     const { key, serverId, tier } = req.body || {};
@@ -138,7 +140,7 @@ const uploadDir = path.join(process.cwd(), "uploads");
 fs.mkdirSync(uploadDir, { recursive: true });
 const upload = multer({ dest: uploadDir, limits: { fileSize: 8 * 1024 * 1024 } });
 
-app.use(express.json({ limit: "15mb" }));
+
 app.use(cookieParser());
 app.use(express.static("dist"));
 app.use("/uploads", express.static(uploadDir));
