@@ -31,7 +31,15 @@ app.use(express.json({ limit: "15mb" }));
 
 app.post("/api/vpn/config", async (req, res) => {
   try {
-    const { key, serverId, tier } = req.body || {};
+    let body = req.body || {};
+
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {}
+    }
+
+    const { key, serverId, tier } = body;
 
     if (!key || !serverId) {
       return res.status(400).json({
