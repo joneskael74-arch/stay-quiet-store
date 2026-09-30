@@ -55,7 +55,7 @@ min-height: 100vh;
 padding: 24px;
 color: white;
 font-family: system-ui, sans-serif;
-background: linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.84)), url('/stay-quiet-welcome.gif') center top / cover fixed;
+background: #000 url('/stay-quiet-welcome.gif') center top / cover no-repeat;
 
 }
 .sq-success * { box-sizing: border-box; }
