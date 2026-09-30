@@ -6,7 +6,13 @@ customerEmail: string | null
 paidAt: number
 amountTotal: number | null
 currency: string | null
-items: { name: string; quantity: number | null; amountTotal: number | null; licenseKeys: string[] }[]
+items: {
+  name: string
+  productId: string | null
+  quantity: number | null
+  amountTotal: number | null
+  licenseKeys: string[]
+}[]
 }
 
 export default function CheckoutSuccess({ sessionId }: { sessionId: string }) {
@@ -150,7 +156,21 @@ border-bottom: 1px solid #333;
 
 <section className="sq-success-card">
 <h2>DOWNLOADS</h2>
-<p className="sq-muted">Download files have not been linked to this order yet.</p>
+{order.items.some(item => item.productId === '6abbffaa693a980bb705cdad') ? (
+  <>
+    <a
+      href="https://github.com/joneskael74-arch/stay-quiet-store/releases/download/vpn-max-v1.0.0/Stay-Quiet-VPN-Max-Windows.zip"
+      style={{ color: 'white', textDecoration: 'underline' }}
+    >
+      Download Stay Quiet VPN Max for Windows
+    </a>
+    <p className="sq-muted">
+      Extract the entire ZIP, open StayQuietVPNMax.exe, and enter your license key.
+    </p>
+  </>
+) : (
+  <p className="sq-muted">Download files have not been linked to this order yet.</p>
+)}
 </section>
 </>
 )}
