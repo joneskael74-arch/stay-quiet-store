@@ -305,7 +305,7 @@ const keyHash = crypto
   .digest("hex");
 
 const storedLicense = await licensesCollection.findOne({
-  _id: keyHash,
+ keyHash: keyHash,
   status: "active"
 });
 
