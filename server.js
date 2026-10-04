@@ -257,7 +257,11 @@ app.post(["/api/verify-license", "/api/vpn/verify"], async (req, res) => {
       .digest("hex");
 
 const license = await db.collection("licenses").findOne({
-  keyHash
+  keyHash,
+  $or: [
+    { active: true },
+    { status: "active" }
+  ]
 });
       
 
