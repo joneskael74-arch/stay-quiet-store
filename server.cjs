@@ -373,7 +373,7 @@ const VPN_PRODUCT_TIERS = new Map(
 app.post("/api/vpn/verify", async (req, res) => {
   res.set("Cache-Control", "no-store");
   const key = req.body?.key;
-  if (typeof key !== "string" || !/^SQ-[a-f\d]{32}$/i.test(key.trim())) {
+  if (typeof key !== "string" || key.trim().length < 8 || key.trim().length > 128) {
     return res.status(403).json({ status: "invalid" });
   }
   if (VPN_PRODUCT_TIERS.size !== 3) {
