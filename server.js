@@ -58,9 +58,31 @@ console.log("VPN VERIFY:", {
   cleanKey,
   keyHash
 });
+    const rawKey = String(key).trim();
+    const upperKey = rawKey.toUpperCase();
+    const hashes = [
+      crypto.createHash("sha256").update(rawKey).digest("hex"),
+      crypto.createHash("sha256").update(upperKey).digest("hex")
+    ];
+
     const license = await db.collection("licenses").findOne({
-      keyHash,
-      active: true
+      $and: [
+        {
+          $or: [
+            { keyHash: { $in: hashes } },
+            { hash: { $in: hashes } },
+            { key: rawKey },
+            { key: upperKey }
+          ]
+        },
+        {
+          $or: [
+            { active: true },
+            { status: "active" },
+            { active: { $exists: false }, status: { $exists: false } }
+          ]
+        }
+      ]
     });
 
     if (!license) {
