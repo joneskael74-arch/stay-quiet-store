@@ -18,6 +18,7 @@ for (const key of required) if (!process.env[key]) {
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
+app.use(express.json({ limit: "15mb" }));
 const PORT = Number(process.env.PORT || 3000);
 const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
@@ -27,7 +28,6 @@ const vpnServers = db.collection("vpnServers");
  
 // ===== STAY QUIET VPN SERVER CONFIG API =====
 
-app.use(express.json({ limit: "15mb" }));
 
 app.post("/api/vpn/config", async (req, res) => {
   try {
@@ -48,7 +48,7 @@ app.post("/api/vpn/config", async (req, res) => {
       });
     }
 
-    const cleanKey = String(key).trim().toUpperCase();
+    const cleanKey = rawKey.toUpperCase();
 
     const keyHash = crypto
       .createHash("sha256")
@@ -265,16 +265,17 @@ app.post("/api/upload", auth, upload.single("image"), (req,res) => {
 
 app.post(["/api/verify-license", "/api/vpn/verify"], async (req, res) => {
   try {
-    const { key } = req.body || {};
+    const { license: licenseInput, key } = req.body || {};
+    const rawKey = String(licenseInput || key || "").trim();
 
-    if (!key) {
+    if (!rawKey) {
       return res.status(400).json({
         success: false,
         message: "License key required"
       });
     }
 
-    const cleanKey = String(key).trim().toUpperCase();
+    const cleanKey = rawKey.toUpperCase();
 
     const keyHash = crypto
       .createHash("sha256")
@@ -321,6 +322,7 @@ const license = await db.collection("licenses").findOne({
     });
   }
 });
+
 
 app.post("/api/checkout", async (req, res) => {
   try {
