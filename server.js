@@ -54,7 +54,10 @@ app.post("/api/vpn/config", async (req, res) => {
       .createHash("sha256")
       .update(cleanKey)
       .digest("hex");
-
+console.log("VPN VERIFY:", {
+  cleanKey,
+  keyHash
+});
     const license = await db.collection("licenses").findOne({
       keyHash,
       active: true
