@@ -383,12 +383,8 @@ app.post("/api/vpn/verify", async (req, res) => {
 
   try {
     const hash = crypto.createHash("sha256").update(key.trim().toUpperCase()).digest("hex");
-   const license = await licensesCollection.findOne({
-  $or: [
-    { keyHash: hash },
-    { _id: hash }
-  ]
-});
+   const license = await licensesCollection.findOne({ _id: hash });
+  
   if (
   !license ||
   (license.active !== true &&
