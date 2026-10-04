@@ -383,14 +383,24 @@ app.post("/api/vpn/verify", async (req, res) => {
 
   try {
     const hash = crypto.createHash("sha256").update(key.trim().toUpperCase()).digest("hex");
-    const license = await licensesCollection.findOne({ _id: hash });
-    if (!license || license.status !== "active") {
-      return res.status(403).json({ status: "invalid" });
-    }
+    const license = await licensesCollection.findOne({ keyHash: hash });
+  if (
+  !license ||
+  (license.active !== true &&
+   String(license.status || "").toLowerCase() !== "active")
+) {
+  return res.status(403).json({
+    success: false,
+    status: "invalid",
+    message: "Invalid or inactive license"
+  });
+}
 
-    const tier = VPN_PRODUCT_TIERS.get(String(license.productId));
-    if (!tier) return res.status(403).json({ status: "invalid" });
-
+const tier =
+  license.tier ||
+  license.appTier ||
+  VPN_PRODUCT_TIERS.get(String(license.productId)) ||
+  "max";
     // Older store keys are valid until revoked. New licenses can optionally
     // include an expiresAt date; expired or malformed dates fail closed.
     let expiresAt = null;
@@ -402,7 +412,7 @@ app.post("/api/vpn/verify", async (req, res) => {
       expiresAt = expiry.toISOString();
     }
 
-    return res.json({ status: "active", tier, expiresAt });
+   return res.json({ success: true, status: "active", tier, expiresAt });
   } catch (error) {
     console.error("VPN license lookup failed:", error);
     return res.status(503).json({ status: "unavailable" });
