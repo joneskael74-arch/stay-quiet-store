@@ -373,9 +373,21 @@ const VPN_PRODUCT_TIERS = new Map(
 app.post("/api/vpn/verify", async (req, res) => {
   res.set("Cache-Control", "no-store");
   const key = req.body?.key;
+  const deviceId = req.body?.deviceId;
   if (typeof key !== "string" || key.trim().length < 8 || key.trim().length > 128) {
     return res.status(403).json({ status: "invalid" });
   }
+  if (
+  typeof deviceId !== "string" ||
+  deviceId.trim().length < 16 ||
+  deviceId.trim().length > 256
+) {
+  return res.status(400).json({
+    success: false,
+    status: "invalid_device",
+    message: "Valid device ID required"
+  });
+}
   if (VPN_PRODUCT_TIERS.size !== 3) {
     console.error("VPN product IDs are not configured for all three tiers");
     return res.status(503).json({ status: "unavailable" });
@@ -417,11 +429,92 @@ const tier =
       }
       expiresAt = expiry.toISOString();
     }
+const deviceHash = crypto
+  .createHash("sha256")
+  .update(deviceId.trim())
+  .digest("hex");
 
+const lockResult = await licensesCollection.updateOne(
+  {
+    _id: license._id,
+    $or: [
+      { deviceHash: { $exists: false } },
+      { deviceHash: null },
+      { deviceHash }
+    ]
+  },
+  { $set: { deviceHash } }
+);
+
+if (lockResult.matchedCount !== 1) {
+  return res.status(403).json({
+    success: false,
+    status: "device_locked",
+    message: "License already activated on another computer"
+  });
+}
    return res.json({ success: true, status: "active", tier, expiresAt });
   } catch (error) {
     console.error("VPN license lookup failed:", error);
     return res.status(503).json({ status: "unavailable" });
+  }
+});
+// STAY QUIET — Staff HWID Reset
+app.post("/api/staff/reset-hwid", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  const staffSecret = process.env.SQ_STAFF_API_SECRET;
+  const suppliedSecret = req.get("x-sq-staff-secret");
+
+  if (!staffSecret || !suppliedSecret || suppliedSecret !== staffSecret) {
+    return res.status(403).json({
+      success: false,
+      message: "Unauthorized"
+    });
+  }
+
+  const { key } = req.body || {};
+
+  if (typeof key !== "string" || key.trim().length < 8 || key.trim().length > 128) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid license key required"
+    });
+  }
+
+  try {
+    const hash = crypto
+      .createHash("sha256")
+      .update(key.trim().toUpperCase())
+      .digest("hex");
+
+    const result = await licensesCollection.updateOne(
+     {
+  $or: [{ keyHash: hash }, { _id: hash }],
+  $and: [
+    {
+      $or: [
+        { active: true },
+        { status: "active" }
+      ]
+    }
+  ]
+},
+      { $unset: { deviceHash: "" } }
+    );
+
+    return res.json({
+      success: result.matchedCount === 1,
+      message: result.matchedCount === 1
+        ? "HWID reset successfully"
+        : "License not found"
+    });
+  } catch (error) {
+    console.error("Staff HWID reset failed:", error);
+    return res.status(503).json({
+      success: false,
+      message: "Reset unavailable"
+    });
   }
 });
 
