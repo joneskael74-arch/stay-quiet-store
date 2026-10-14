@@ -406,7 +406,7 @@ const tier =
   license.tier ||
   license.appTier ||
   VPN_PRODUCT_TIERS.get(String(license.productId)) ||
-  "max";
+  null;
     // Older store keys are valid until revoked. New licenses can optionally
     // include an expiresAt date; expired or malformed dates fail closed.
     let expiresAt = null;
