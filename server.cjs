@@ -562,10 +562,11 @@ async function registerVpnPeer(publicKey, ipAddress) {
   });
 }
 
-async function ensureVpnDeviceIndex() {
 const vpnDevicesCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("vpnDevices");
+
+async function ensureVpnDeviceIndex() {
 vpnDevicesCollection.createIndex(
     { licenseHash: 1, deviceHash: 1, serverId: 1 },
     { unique: true, name: "unique_vpn_device" }
