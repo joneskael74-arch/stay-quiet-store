@@ -460,10 +460,254 @@ if (lockResult.matchedCount !== 1) {
   }
 });
 
+
+function generateWireGuardKeyPair() {
+  const { generateKeyPairSync } = require("node:crypto");
+
+  const { privateKey, publicKey } = generateKeyPairSync("x25519", {
+    privateKeyEncoding: { format: "der", type: "pkcs8" },
+    publicKeyEncoding: { format: "der", type: "spki" }
+  });
+
+  return {
+    privateKey: privateKey.subarray(-32).toString("base64"),
+    publicKey: publicKey.subarray(-32).toString("base64")
+  };
+}
+
+async function allocateVpnDeviceIp() {
+  const db = productClient.db(process.env.MONGODB_DB);
+  const counters = db.collection("vpnCounters");
+
+  await counters.updateOne(
+    { _id: "wg0-ip" },
+    { $setOnInsert: { next: 3 } },
+    { upsert: true }
+  );
+
+  const result = await counters.findOneAndUpdate(
+    { _id: "wg0-ip" },
+    { $inc: { next: 1 } },
+    { upsert: true, returnDocument: "after" }
+  );
+
+  const number = result?.next ?? result?.value?.next;
+
+  if (!Number.isInteger(number) || number < 4 || number > 254) {
+    throw new Error("VPN address pool exhausted or invalid");
+  }
+
+  return `10.90.90.${number}`;
+}
+
+async function registerVpnPeer(publicKey, ipAddress) {
+  const { Client } = require("ssh2");
+  const { isIP } = require("node:net");
+
+  if (!/^[A-Za-z0-9+/]{43}=$/.test(publicKey) ||
+      isIP(ipAddress) !== 4 ||
+      !ipAddress.startsWith("10.90.90.")) {
+    throw new Error("Invalid WireGuard peer");
+  }
+
+  const host = process.env.VPN_SSH_HOST;
+  const username = process.env.VPN_SSH_USER;
+  const privateKey = (process.env.VPN_SSH_PRIVATE_KEY || "")?.replace(/\\n/g, "\\n");
+
+  if (!host || !username || !privateKey) {
+    throw new Error("VPN SSH credentials are not configured");
+  }
+
+  return new Promise((resolve, reject) => {
+    const ssh = new Client();
+    let settled = false;
+
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      ssh.end();
+      error ? reject(error) : resolve();
+    };
+
+    ssh.on("ready", () => {
+      const command = `sudo -n /usr/local/sbin/sqvpn-register-peer ${publicKey} ${ipAddress}`;
+
+      ssh.exec(command, (error, stream) => {
+        if (error) return finish(error);
+
+        let stderr = "";
+        stream.on("data", () => {});
+        stream.stderr.on("data", data => {
+          stderr += data.toString();
+        });
+
+        stream.on("close", code => {
+          finish(code === 0 ? null : new Error(stderr || "VPN peer registration failed"));
+        });
+      });
+    });
+
+    ssh.on("error", finish);
+
+    ssh.connect({
+      host,
+      port: 22,
+      username,
+      privateKey,
+      hostHash: "sha256",
+      hostVerifier: hash =>
+        hash === process.env.VPN_SSH_HOST_FINGERPRINT,
+      readyTimeout: 15000
+    });
+  });
+}
+
+async function ensureVpnDeviceIndex() {
+  await vpnDevicesCollection.createIndex(
+    { licenseHash: 1, deviceHash: 1, serverId: 1 },
+    { unique: true, name: "unique_vpn_device" }
+  );
+}
+
+vpnDevicesCollection.createIndex(
+  { licenseHash: 1, deviceHash: 1, serverId: 1 },
+  { unique: true, name: "unique_vpn_device" }
+).catch(error => {
+  console.error("VPN device index initialization failed:", error.message);
+});
+
+async function ensureVpnIpIndex() {
+  await vpnDevicesCollection.createIndex(
+    { ipAddress: 1 },
+    {
+      unique: true,
+      partialFilterExpression: { ipAddress: { $type: "string" } },
+      name: "unique_vpn_ip"
+    }
+  );
+}
+
+ensureVpnIpIndex().catch(error => {
+  console.error("VPN IP index initialization failed:", error.message);
+});
+
+function buildVpnDeviceConfig(device, server) {
+  if (!device?.privateKey || !device?.ipAddress) {
+    throw new Error("VPN device credentials missing");
+  }
+
+  if (!server?.publicKey || !server?.endpoint) {
+    throw new Error("VPN server connection details missing");
+  }
+
+  return [
+    "[Interface]",
+    `PrivateKey = ${device.privateKey}`,
+    `Address = ${device.ipAddress}/32`,
+    "DNS = 1.1.1.1",
+    "",
+    "[Peer]",
+    `PublicKey = ${server.publicKey}`,
+    `Endpoint = ${server.endpoint}`,
+    "AllowedIPs = 0.0.0.0/0",
+    "PersistentKeepalive = 25",
+    ""
+  ].join("\n");
+}
+
+function encryptVpnPrivateKey(privateKey) {
+  const secret = process.env.VPN_CONFIG_ENCRYPTION_KEY;
+  if (!secret || !/^[a-f0-9]{64}$/i.test(secret)) {
+    throw new Error("VPN encryption key is not configured");
+  }
+
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(
+    "aes-256-gcm",
+    Buffer.from(secret, "hex"),
+    iv
+  );
+
+  const encrypted = Buffer.concat([
+    cipher.update(privateKey, "utf8"),
+    cipher.final()
+  ]);
+
+  return {
+    encryptedPrivateKey: encrypted.toString("base64"),
+    encryptionIv: iv.toString("base64"),
+    encryptionTag: cipher.getAuthTag().toString("base64")
+  };
+}
+
+function decryptVpnPrivateKey(device) {
+  const secret = process.env.VPN_CONFIG_ENCRYPTION_KEY;
+
+  if (!secret || !/^[a-f0-9]{64}$/i.test(secret)) {
+    throw new Error("VPN encryption key is not configured");
+  }
+
+  const decipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    Buffer.from(secret, "hex"),
+    Buffer.from(device.encryptionIv, "base64")
+  );
+
+  decipher.setAuthTag(
+    Buffer.from(device.encryptionTag, "base64")
+  );
+
+  return Buffer.concat([
+    decipher.update(
+      Buffer.from(device.encryptedPrivateKey, "base64")
+    ),
+    decipher.final()
+  ]).toString("utf8");
+}
+
+function createVpnDeviceRecord(licenseHash, deviceHash, serverId, ipAddress) {
+  const keys = generateWireGuardKeyPair();
+  const encrypted = encryptVpnPrivateKey(keys.privateKey);
+
+  return {
+    licenseHash,
+    deviceHash,
+    serverId,
+    ipAddress,
+    publicKey: keys.publicKey,
+    ...encrypted,
+    status: "pending",
+    createdAt: new Date()
+  };
+}
+
+async function getOrCreateVpnDevice(licenseHash, deviceHash, serverId) {
+  const identity = { licenseHash, deviceHash, serverId };
+
+  const existing = await vpnDevicesCollection.findOne(identity);
+  if (existing) return existing;
+
+  const ipAddress = await allocateVpnDeviceIp();
+  const record = createVpnDeviceRecord(
+    licenseHash, deviceHash, serverId, ipAddress
+  );
+
+  try {
+    await vpnDevicesCollection.insertOne(record);
+    return record;
+  } catch (error) {
+    if (error.code === 11000) {
+      const saved = await vpnDevicesCollection.findOne(identity);
+      if (saved) return saved;
+    }
+    throw error;
+  }
+}
+
 app.post("/api/vpn/config", async (req, res) => {
   res.set("Cache-Control", "no-store");
   try {
-    const { key, serverId, tier } = req.body || {};
+    const { key, serverId, tier, deviceId } = req.body || {};
     if (typeof key !== "string" || typeof serverId !== "string" ||
         !key.trim() || !serverId.trim()) {
       return res.status(400).json({ success: false, message: "License key and server ID are required" });
@@ -496,6 +740,17 @@ app.post("/api/vpn/config", async (req, res) => {
       return res.status(403).json({ success: false, message: "Activate your license first" });
     }
 
+    if (typeof deviceId !== "string" ||
+        deviceId.trim().length < 16 ||
+        deviceId.trim().length > 256 ||
+        !license.deviceHash ||
+        crypto.createHash("sha256").update(deviceId.trim()).digest("hex") !== license.deviceHash) {
+      return res.status(403).json({
+        success: false,
+        message: "Device is not authorized for this license"
+      });
+    }
+
     const server = await licensesCollection.db.collection("vpnServers")
       .findOne({
         $or: [
@@ -505,11 +760,32 @@ app.post("/api/vpn/config", async (req, res) => {
         active: true
       });
 
-    if (!server || typeof server.config !== "string" || !server.config.includes("[Interface]")) {
-      return res.status(404).json({ success: false, message: "VPN server configuration unavailable" });
+    if (!server || server.active !== true) {
+      return res.status(404).json({
+        success: false,
+        message: "VPN server unavailable"
+      });
     }
 
-    return res.json({ success: true, server: serverId, config: server.config });
+    const device = await getOrCreateVpnDevice(
+      hash,
+      license.deviceHash,
+      serverId.trim()
+    );
+
+    await registerVpnPeer(device.publicKey, device.ipAddress);
+
+    const privateKey = decryptVpnPrivateKey(device);
+    const config = buildVpnDeviceConfig(
+      { ...device, privateKey },
+      server
+    );
+
+    return res.json({
+      success: true,
+      server: serverId.trim(),
+      config
+    });
   } catch (error) {
     console.error("VPN configuration failed:", error.message);
     return res.status(503).json({ success: false, message: "VPN configuration unavailable" });
@@ -688,6 +964,9 @@ const productsCollection = productClient
 const licensesCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("licenses");
+const vpnDevicesCollection = productClient
+  .db(process.env.MONGODB_DB)
+  .collection("vpnDevices");
 app.get("/api/products", async (req, res) => {
   try {
     const products = await productsCollection

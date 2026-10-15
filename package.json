@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "start": "vite"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -19,6 +20,7 @@
     "multer": "^2.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "ssh2": "^1.17.0",
     "stripe": "^18.5.0"
   },
   "devDependencies": {
