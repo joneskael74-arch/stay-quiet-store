@@ -459,6 +459,57 @@ if (lockResult.matchedCount !== 1) {
     return res.status(503).json({ status: "unavailable" });
   }
 });
+
+app.post("/api/vpn/config", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const { key, serverId, tier } = req.body || {};
+    if (typeof key !== "string" || typeof serverId !== "string" ||
+        !key.trim() || !serverId.trim()) {
+      return res.status(400).json({ success: false, message: "License key and server ID are required" });
+    }
+
+    const hash = crypto.createHash("sha256")
+      .update(key.trim().toUpperCase()).digest("hex");
+    const license = await licensesCollection.findOne({
+      $or: [{ keyHash: hash }, { _id: hash }]
+    });
+
+    if (!license || (license.active !== true &&
+        String(license.status || "").toLowerCase() !== "active")) {
+      return res.status(403).json({ success: false, message: "Invalid or inactive license" });
+    }
+
+    if (license.expiresAt && (!Number.isFinite(new Date(license.expiresAt).getTime()) ||
+        new Date(license.expiresAt).getTime() <= Date.now())) {
+      return res.status(403).json({ success: false, message: "License expired" });
+    }
+
+    const licensedTier = license.tier || license.appTier ||
+      VPN_PRODUCT_TIERS.get(String(license.productId));
+    if (!licensedTier || String(licensedTier).toLowerCase() !== String(tier).toLowerCase()) {
+      return res.status(403).json({ success: false, message: "VPN tier not authorized" });
+    }
+
+    // Device-bound licenses must be verified through the existing activation flow.
+    if (!license.deviceHash) {
+      return res.status(403).json({ success: false, message: "Activate your license first" });
+    }
+
+    const server = await licensesCollection.db.collection("vpnServers")
+      .findOne({ serverId: serverId.trim() });
+
+    if (!server || typeof server.config !== "string" || !server.config.includes("[Interface]")) {
+      return res.status(404).json({ success: false, message: "VPN server configuration unavailable" });
+    }
+
+    return res.json({ success: true, server: serverId, config: server.config });
+  } catch (error) {
+    console.error("VPN configuration failed:", error.message);
+    return res.status(503).json({ success: false, message: "VPN configuration unavailable" });
+  }
+});
+
 // STAY QUIET — Staff HWID Reset
 app.post("/api/staff/reset-hwid", async (req, res) => {
   res.set("Cache-Control", "no-store");
