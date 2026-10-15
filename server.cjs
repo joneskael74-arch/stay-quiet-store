@@ -563,7 +563,10 @@ async function registerVpnPeer(publicKey, ipAddress) {
 }
 
 async function ensureVpnDeviceIndex() {
-  await vpnDevicesCollection.createIndex(
+  const vpnDevicesCollection = productClient
+  .db(process.env.MONGODB_DB)
+  .collection("vpnDevices");
+vpnDevicesCollection.createIndex(
     { licenseHash: 1, deviceHash: 1, serverId: 1 },
     { unique: true, name: "unique_vpn_device" }
   );
@@ -964,9 +967,7 @@ const productsCollection = productClient
 const licensesCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("licenses");
-const vpnDevicesCollection = productClient
-  .db(process.env.MONGODB_DB)
-  .collection("vpnDevices");
+
 app.get("/api/products", async (req, res) => {
   try {
     const products = await productsCollection
