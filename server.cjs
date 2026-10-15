@@ -497,7 +497,13 @@ app.post("/api/vpn/config", async (req, res) => {
     }
 
     const server = await licensesCollection.db.collection("vpnServers")
-      .findOne({ serverId: serverId.trim() });
+      .findOne({
+        $or: [
+          { id: serverId.trim() },
+          { serverId: serverId.trim() }
+        ],
+        active: true
+      });
 
     if (!server || typeof server.config !== "string" || !server.config.includes("[Interface]")) {
       return res.status(404).json({ success: false, message: "VPN server configuration unavailable" });
