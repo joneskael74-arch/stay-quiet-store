@@ -565,18 +565,11 @@ async function registerVpnPeer(publicKey, ipAddress) {
 
 
 async function ensureVpnDeviceIndex() {
-vpnDevicesCollection.createIndex(
+  await vpnDevicesCollection.createIndex(
     { licenseHash: 1, deviceHash: 1, serverId: 1 },
     { unique: true, name: "unique_vpn_device" }
   );
 }
-
-vpnDevicesCollection.createIndex(
-  { licenseHash: 1, deviceHash: 1, serverId: 1 },
-  { unique: true, name: "unique_vpn_device" }
-).catch(error => {
-  console.error("VPN device index initialization failed:", error.message);
-});
 
 async function ensureVpnIpIndex() {
   await vpnDevicesCollection.createIndex(
