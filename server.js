@@ -48,16 +48,6 @@ app.post("/api/vpn/config", async (req, res) => {
       });
     }
 
-    const cleanKey = rawKey.toUpperCase();
-
-    const keyHash = crypto
-      .createHash("sha256")
-      .update(cleanKey)
-      .digest("hex");
-console.log("VPN VERIFY:", {
-  cleanKey,
-  keyHash
-});
     const rawKey = String(key).trim();
     const upperKey = rawKey.toUpperCase();
     const hashes = [
