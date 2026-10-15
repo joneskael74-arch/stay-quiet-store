@@ -591,12 +591,12 @@ const baseUrl = `${protocol}://${host}`;
 const session =
 await stripe.checkout.sessions.create({
 mode: "payment",
-
 allow_promotion_codes: true,
 
-line_items,
 
 line_items,
+
+
 
 success_url:
 `${baseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
