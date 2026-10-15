@@ -563,7 +563,7 @@ async function registerVpnPeer(publicKey, ipAddress) {
 }
 
 async function ensureVpnDeviceIndex() {
-  const vpnDevicesCollection = productClient
+const vpnDevicesCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("vpnDevices");
 vpnDevicesCollection.createIndex(
