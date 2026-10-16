@@ -1053,7 +1053,61 @@ app.get("/api/products/:id/image", async (req, res) => {
     res.sendStatus(503);
   }
 });
+// STAY QUIET - STAFF LICENSE GENERATOR
+app.post("/api/staff/generate-key", express.json(), async (req, res) => {
+  try {
+    const expectedSecret = process.env.SQ_STAFF_API_SECRET;
+    const suppliedSecret = req.get("x-staff-secret");
 
+    if (!expectedSecret || !suppliedSecret ||
+        suppliedSecret.length !== expectedSecret.length ||
+        !crypto.timingSafeEqual(
+          Buffer.from(suppliedSecret),
+          Buffer.from(expectedSecret)
+        )) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized"
+      });
+    }
+
+    const tier = String(req.body?.level || "").toLowerCase();
+    if (!["level1", "level2", "max"].includes(tier)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid VPN level"
+      });
+    }
+
+    const key = "SQ-" + crypto.randomBytes(16)
+      .toString("hex").toUpperCase();
+
+    const keyHash = crypto.createHash("sha256")
+      .update(key)
+      .digest("hex");
+
+    await licensesCollection.insertOne({
+      keyHash,
+      tier,
+      active: true,
+      status: "active",
+      createdAt: new Date(),
+      source: "staff"
+    });
+
+    return res.json({
+      success: true,
+      level: tier,
+      key
+    });
+  } catch (error) {
+    console.error("STAFF KEY GENERATION ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to generate license"
+    });
+  }
+});
 // --------------------------------------------------
 // START SERVER
 // --------------------------------------------------
