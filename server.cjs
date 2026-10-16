@@ -1070,7 +1070,15 @@ app.post("/api/staff/generate-key", express.json(), async (req, res) => {
         message: "Unauthorized"
       });
     }
+const staffId = String(req.body?.staffId || "").trim();
+const staffName = String(req.body?.staffName || "").trim();
 
+if (!/^\d{17,20}$/.test(staffId)) {
+  return res.status(400).json({
+    success: false,
+    message: "Valid Discord staff ID required"
+  });
+}
     const tier = String(req.body?.level || "").toLowerCase();
     if (!["level1", "level2", "max"].includes(tier)) {
       return res.status(400).json({
@@ -1092,14 +1100,23 @@ app.post("/api/staff/generate-key", express.json(), async (req, res) => {
       active: true,
       status: "active",
       createdAt: new Date(),
-      source: "staff"
+     source: "staff",
+staffId,
+staffName
     });
-
+const totalGenerated = await licensesCollection.countDocuments({
+  source: "staff",
+  staffId
+});
     return res.json({
-      success: true,
-      level: tier,
-      key
-    });
+  success: true,
+  level: tier,
+  key,
+  generatedBy: staffName,
+  staffId,
+  generatedAt: new Date().toISOString(),
+  totalGenerated
+});
   } catch (error) {
     console.error("STAFF KEY GENERATION ERROR:", error);
     return res.status(500).json({
