@@ -582,9 +582,7 @@ async function ensureVpnIpIndex() {
   );
 }
 
-ensureVpnIpIndex().catch(error => {
-  console.error("VPN IP index initialization failed:", error.message);
-});
+
 
 function buildVpnDeviceConfig(device, server) {
   if (!device?.privateKey || !device?.ipAddress) {
@@ -962,6 +960,9 @@ const licensesCollection = productClient
 const vpnDevicesCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("vpnDevices");
+ensureVpnIpIndex().catch(error => {
+  console.error("VPN IP index initialization failed:", error.message);
+});
 
 app.get("/api/products", async (req, res) => {
   try {
