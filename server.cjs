@@ -963,6 +963,7 @@ const vpnDevicesCollection = productClient
 const genAccountsCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("genAccounts");ensureVpnIpIndex().catch(error => {
+ ensureVpnIpIndex().catch(error => {
   console.error("VPN IP index initialization failed:", error.message);
 });
 
@@ -1136,6 +1137,36 @@ app.get("/api/gen/accounts/count", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Unable to retrieve account count"
+    });
+  }
+
+app.get("/api/gen/accounts/available", async (req, res) => {
+  try {
+    const platform = String(req.query.platform || "")
+      .trim()
+      .toLowerCase();
+
+    const allowed = ["rockstar", "steam", "discord"];
+
+    if (!allowed.includes(platform)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid platform"
+      });
+    }
+
+    const total = await genAccountsCollection.countDocuments({
+      platform,
+      status: "available",
+      active: true
+    });
+
+    return res.json({ success: true, platform, total });
+  } catch (error) {
+    console.error("Account availability error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to retrieve availability"
     });
   }
 });// --------------------------------------------------
