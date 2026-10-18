@@ -962,7 +962,7 @@ const vpnDevicesCollection = productClient
   .collection("vpnDevices");
 const genAccountsCollection = productClient
   .db(process.env.MONGODB_DB)
-  .collection("genAccounts");ensureVpnIpIndex().catch(error => {
+  .collection("genAccounts");
  ensureVpnIpIndex().catch(error => {
   console.error("VPN IP index initialization failed:", error.message);
 });
@@ -1139,7 +1139,7 @@ app.get("/api/gen/accounts/count", async (req, res) => {
       message: "Unable to retrieve account count"
     });
   }
-
+});
 app.get("/api/gen/accounts/available", async (req, res) => {
   try {
     const platform = String(req.query.platform || "")
