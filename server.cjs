@@ -1197,6 +1197,33 @@ app.get("/api/gen/accounts/inventory", async (req, res) => {
     });
   }
 });
+
+// STAY QUIET GEN - Account delivery
+app.post("/api/gen/accounts/claim", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+const platform = String(req.body?.platform || "").trim().toLowerCase();
+
+if (!["steam", "discord", "rockstar"].includes(platform)) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid platform"
+  });
+}
+const authorization = req.get("Authorization") || "";
+
+if (!authorization.startsWith("Bearer ")) {
+  return res.status(401).json({
+    success: false,
+    message: "Authentication required"
+  });
+}
+
+  
+  return res.status(501).json({
+    success: false,
+    message: "Account delivery is not enabled yet"
+  });
+});
 // START SERVER
 // --------------------------------------------------
 
