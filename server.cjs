@@ -1198,6 +1198,13 @@ app.get("/api/gen/accounts/inventory", async (req, res) => {
   }
 });
 
+// STAY QUIET GEN — Authentication token extractor
+function getGenAuthToken(req) {
+  const header = req.get("Authorization") || "";
+  const match = /^Bearer ([^\s]+)$/.exec(header);
+
+  return match ? match[1] : null;
+}
 // STAY QUIET GEN - Account delivery
 app.post("/api/gen/accounts/claim", async (req, res) => {
   res.set("Cache-Control", "no-store");
