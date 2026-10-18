@@ -960,7 +960,9 @@ const licensesCollection = productClient
 const vpnDevicesCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("vpnDevices");
-ensureVpnIpIndex().catch(error => {
+const genAccountsCollection = productClient
+  .db(process.env.MONGODB_DB)
+  .collection("genAccounts");ensureVpnIpIndex().catch(error => {
   console.error("VPN IP index initialization failed:", error.message);
 });
 
@@ -1125,7 +1127,18 @@ const totalGenerated = await licensesCollection.countDocuments({
     });
   }
 });
-// --------------------------------------------------
+app.get("/api/gen/accounts/count", async (req, res) => {
+  try {
+    const total = await genAccountsCollection.countDocuments({});
+    res.json({ success: true, total });
+  } catch (error) {
+    console.error("Account inventory error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Unable to retrieve account count"
+    });
+  }
+});// --------------------------------------------------
 // START SERVER
 // --------------------------------------------------
 
