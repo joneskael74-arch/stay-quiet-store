@@ -1170,6 +1170,33 @@ app.get("/api/gen/accounts/available", async (req, res) => {
     });
   }
 });// --------------------------------------------------
+// STAY QUIET GEN — Account inventory lookup
+app.get("/api/gen/accounts/inventory", async (req, res) => {
+  try {
+    const platform = String(req.query.platform || "").trim().toLowerCase();
+
+    if (!["steam", "discord", "rockstar"].includes(platform)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid platform"
+      });
+    }
+
+    const total = await genAccountsCollection.countDocuments({
+      platform,
+      status: "available",
+      active: true
+    });
+
+    return res.json({ success: true, platform, total });
+  } catch (error) {
+    console.error("Inventory lookup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Inventory lookup failed"
+    });
+  }
+});
 // START SERVER
 // --------------------------------------------------
 
