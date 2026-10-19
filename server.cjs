@@ -1039,7 +1039,7 @@ app.post("/api/gen/accounts/import", express.json(), async (req, res) => {
 
     if (
       !["discord", "rockstar", "steam"].includes(normalizedPlatform) ||
-      (normalizedPlatform !== "discord" && (typeof username !== "string" || !username.trim())) ||
+      (normalizedPlatform === "steam" && (typeof username !== "string" || !username.trim())) ||
       typeof email !== "string" || !email.trim() ||
       typeof password !== "string" || !password
     ) {
@@ -1054,7 +1054,7 @@ app.post("/api/gen/accounts/import", express.json(), async (req, res) => {
     const account = {
       platform: normalizedPlatform,
       ...(normalizedPlatform !== "discord" ? { username: username.trim() } : {}),
-      email: email.trim(),
+     ...(normalizedPlatform === "steam" ? { username: username.trim() } : {}),
       ...encrypted,
       status: "available",
       assignedTo: null,
