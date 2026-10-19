@@ -1268,7 +1268,7 @@ app.get("/api/gen/accounts/available", async (req, res) => {
     const total = await genAccountsCollection.countDocuments({
       platform,
       status: "available",
-      active: true
+    status: "available"
     });
 
     return res.json({ success: true, platform, total });
@@ -1356,10 +1356,37 @@ if (!genLicense.productId) {
     message: "GEN product authorization required"
   });
 }
-  return res.status(501).json({
+  const account = await genAccountsCollection.findOneAndUpdate(
+  {
+    platform,
+    status: "available"
+  },
+  {
+    $set: {
+      status: "assigned",
+      assignedTo: keyHash,
+      assignedAt: new Date()
+    }
+  },
+  {
+    sort: { createdAt: 1 },
+    returnDocument: "after"
+  }
+);
+
+if (!account) {
+  return res.status(404).json({
     success: false,
-    message: "Account delivery is not enabled yet"
+    message: "No available accounts"
   });
+}
+
+return res.json({
+  success: true,
+  message: "Account assigned",
+  platform,
+  accountId: String(account._id)
+});
 });
 // START SERVER
 // --------------------------------------------------
