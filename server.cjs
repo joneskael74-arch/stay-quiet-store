@@ -1053,7 +1053,7 @@ app.post("/api/gen/accounts/import", express.json(), async (req, res) => {
 
     const account = {
       platform: normalizedPlatform,
-      ...(normalizedPlatform !== "discord" ? { username: username.trim() } : {}),
+     
      ...(normalizedPlatform === "steam" ? { username: username.trim() } : {}),
       ...encrypted,
       status: "available",
