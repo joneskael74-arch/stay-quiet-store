@@ -963,6 +963,8 @@ const vpnDevicesCollection = productClient
 const genAccountsCollection = productClient
   .db(process.env.MONGODB_DB)
   .collection("genAccounts");
+  
+
  ensureVpnIpIndex().catch(error => {
   console.error("VPN IP index initialization failed:", error.message);
 });
@@ -1356,6 +1358,7 @@ if (!genLicense.productId) {
     message: "GEN product authorization required"
   });
 }
+
   const account = await genAccountsCollection.findOneAndUpdate(
   {
     platform,
