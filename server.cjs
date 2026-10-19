@@ -966,7 +966,117 @@ const genAccountsCollection = productClient
  ensureVpnIpIndex().catch(error => {
   console.error("VPN IP index initialization failed:", error.message);
 });
+const GEN_ENCRYPTION_KEY = Buffer.from(
+  process.env.GEN_ENCRYPTION_KEY || "",
+  "hex"
+);
 
+if (GEN_ENCRYPTION_KEY.length !== 32) {
+  throw new Error("Invalid GEN_ENCRYPTION_KEY");
+}
+
+function encryptGenPassword(password) {
+  const iv = crypto.randomBytes(12);
+
+  const cipher = crypto.createCipheriv(
+    "aes-256-gcm",
+    GEN_ENCRYPTION_KEY,
+    iv
+  );
+
+  const encrypted = Buffer.concat([
+    cipher.update(String(password), "utf8"),
+    cipher.final()
+  ]);
+
+  return {
+    version: 1,
+    iv: iv.toString("hex"),
+    encryptedPassword: encrypted.toString("hex"),
+    authTag: cipher.getAuthTag().toString("hex")
+  };
+}
+
+function decryptGenPassword(data) {
+  if (data?.version !== 1) {
+    throw new Error("Unsupported credential format");
+  }
+
+  const decipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    GEN_ENCRYPTION_KEY,
+    Buffer.from(data.iv, "hex")
+  );
+
+  decipher.setAuthTag(
+    Buffer.from(data.authTag, "hex")
+  );
+
+  return Buffer.concat([
+    decipher.update(
+      Buffer.from(data.encryptedPassword, "hex")
+    ),
+    decipher.final()
+  ]).toString("utf8");
+}
+// STAY QUIET GEN - Secure Account Import
+app.post("/api/gen/accounts/import", express.json(), async (req, res) => {
+  try {
+    const expectedToken = process.env.GEN_ADMIN_IMPORT_TOKEN;
+    const suppliedToken = req.get("x-gen-admin-token");
+
+    if (!expectedToken || !suppliedToken ||
+        suppliedToken !== expectedToken) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized"
+      });
+    }
+
+    const { platform, username, email, password } = req.body;
+
+    const normalizedPlatform = String(platform || "").toLowerCase();
+
+    if (
+      !["discord", "rockstar", "steam"].includes(normalizedPlatform) ||
+      typeof username !== "string" || !username.trim() ||
+      typeof email !== "string" || !email.trim() ||
+      typeof password !== "string" || !password
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid account details"
+      });
+    }
+
+    const encrypted = encryptGenPassword(password);
+
+    const account = {
+      platform: normalizedPlatform,
+      username: username.trim(),
+      email: email.trim(),
+      ...encrypted,
+      status: "available",
+      assignedTo: null,
+      createdAt: new Date()
+    };
+
+    await genAccountsCollection.insertOne(account);
+
+    return res.status(201).json({
+      success: true,
+      message: "Account saved securely"
+    });
+
+  } catch (error) {
+    console.error("GEN ACCOUNT IMPORT ERROR:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to save account"
+    });
+  }
+});
 app.get("/api/products", async (req, res) => {
   try {
     const products = await productsCollection
@@ -1216,16 +1326,36 @@ if (!["steam", "discord", "rockstar"].includes(platform)) {
     message: "Invalid platform"
   });
 }
-const authorization = req.get("Authorization") || "";
+const token = getGenAuthToken(req);
 
-if (!authorization.startsWith("Bearer ")) {
+if (!token) {
   return res.status(401).json({
     success: false,
     message: "Authentication required"
   });
 }
 
-  
+  const keyHash = crypto
+  .createHash("sha256")
+  .update(token.trim().toUpperCase())
+  .digest("hex");
+
+const genLicense = await licensesCollection.findOne({
+  keyHash,
+  status: "active"
+});
+if (!genLicense) {
+  return res.status(403).json({
+    success: false,
+    message: "Invalid or inactive license"
+  });
+}
+if (!genLicense.productId) {
+  return res.status(403).json({
+    success: false,
+    message: "GEN product authorization required"
+  });
+}
   return res.status(501).json({
     success: false,
     message: "Account delivery is not enabled yet"
